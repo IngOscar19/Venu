@@ -132,6 +132,13 @@ builder.Services.AddSwaggerGen(options =>
         Description = "API para la plataforma de venta y gestión de tickets para eventos"
     });
 
+    // Mapeo para TimeSpan en OpenAPI
+    options.MapType<TimeSpan>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Example = new Microsoft.OpenApi.Any.OpenApiString("08:00:00")
+    });
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -179,6 +186,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", time = DateTime.UtcNow }));
 
 // Seeder de base de datos
 using (var scope = app.Services.CreateScope())
