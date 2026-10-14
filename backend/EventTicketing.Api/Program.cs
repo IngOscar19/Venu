@@ -17,7 +17,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Configuración de Autenticación JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret not configured.");
+var secretKey = jwtSettings["Secret"];
+if (string.IsNullOrWhiteSpace(secretKey))
+    throw new InvalidOperationException("JWT Secret not configured. Set JwtSettings__Secret.");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -161,7 +163,7 @@ var app = builder.Build();
 // Middleware Global de Excepciones
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
