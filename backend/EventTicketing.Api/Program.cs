@@ -47,27 +47,22 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        if (builder.Environment.IsDevelopment())
-        {
-            policy.SetIsOriginAllowed(origin =>
-                {
-                    if (string.IsNullOrEmpty(origin)) return false;
-                    var uri = new Uri(origin);
-                    return uri.Host == "localhost" || uri.Host == "127.0.0.1";
-                })
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        }
-        else
-        {
-            policy.WithOrigins(
-                    builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-                    ?? Array.Empty<string>()
-                )
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        }
+        var configuredOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+            ?? builder.Configuration["AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ?? Array.Empty<string>();
+
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrEmpty(origin)) return false;
+                var uri = new Uri(origin);
+                return uri.Host == "localhost"
+                    || uri.Host == "127.0.0.1"
+                    || uri.Host.EndsWith("vercel.app")
+                    || configuredOrigins.Any(co => string.Equals(co, origin, StringComparison.OrdinalIgnoreCase));
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -177,10 +172,10 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 app.UseStaticFiles();
 
 app.UseRateLimiter();
-app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
