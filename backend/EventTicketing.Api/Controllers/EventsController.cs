@@ -131,14 +131,13 @@ public class EventsController : ControllerBase
 
     [HttpPost("{id:guid}/images/upload")]
     [Authorize]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult<EventImageDto>> UploadImage(
         Guid id,
-        [FromForm] IFormFile file,
-        [FromForm] ImageType type = ImageType.POSTER,
-        [FromForm] int order = 0)
+        [FromForm] UploadEventImageRequest form)
     {
         var organizerId = GetOrganizerIdFromClaims();
-        var result = await _eventService.UploadImageAsync(organizerId, id, file, type, order);
+        var result = await _eventService.UploadImageAsync(organizerId, id, form.File, form.Type, form.Order);
         return Ok(result);
     }
 

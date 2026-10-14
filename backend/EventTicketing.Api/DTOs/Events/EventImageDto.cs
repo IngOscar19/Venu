@@ -15,3 +15,11 @@ public record AddEventImageDto(
     ImageType Type,
     int Order
 );
+
+public class UploadEventImageRequest
+{
+    public IFormFile File { get; set; } = null!;
+    public ImageType Type { get; set; } = ImageType.POSTER;
+    public int Order { get; set; } = 0;
+}
+

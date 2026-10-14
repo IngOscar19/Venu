@@ -22,6 +22,7 @@ public class OrganizersController : ControllerBase
 
     [HttpPost("me/verification")]
     [Authorize(Roles = "ORGANIZER")]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> SubmitVerification([FromForm] SubmitVerificationFormDto dto)
     {
         var organizerId = GetOrganizerIdFromClaims();
