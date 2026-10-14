@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+appsettings.Development.json
+appsettings.Production.json
+
+# Node / React / React Native
+node_modules/
+dist/
+build/
+.expo/
+.env
+.env.*
+!.env.example
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/android/.gradle/
+**/ios/Pods/
+
+# IDEs
+.idea/
+.vscode/
+*.log

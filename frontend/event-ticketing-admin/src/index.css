@@ -1,0 +1,444 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-headline: 'Space Grotesk', sans-serif;
+    --font-body: 'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* Theme Tokens - Default Dark Mode */
+    --bg-main: #0D1117;
+    --bg-surface: #161B22;
+    --bg-elevated: #21262D;
+    --border-color: #30363D;
+    --border-subtle: #21262D;
+
+    --color-primary: #FA4616;
+    --color-secondary: #003087;
+    --color-tertiary: #FF6B35;
+    --color-tint: #F5A894;
+
+    --text-primary: #F0F6FC;
+    --text-secondary: #8B949E;
+    --text-muted: #6E7681;
+  }
+
+  html.light {
+    /* Theme Tokens - Light Mode */
+    --bg-main: #F6F8FA;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F0F2F5;
+    --border-color: #D0D7DE;
+    --border-subtle: #E1E4E8;
+
+    --text-primary: #1F2328;
+    --text-secondary: #57606A;
+    --text-muted: #656D76;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    margin: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-headline);
+    letter-spacing: -0.02em;
+  }
+
+  code, pre, .font-mono, .label-mono {
+    font-family: var(--font-mono);
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* Custom Stitch Theme Utilities */
+.bg-stitch-bg {
+  background-color: var(--bg-main);
+}
+
+.bg-stitch-surface {
+  background-color: var(--bg-surface);
+}
+
+.bg-stitch-elevated {
+  background-color: var(--bg-elevated);
+}
+
+.border-stitch {
+  border-color: var(--border-color);
+}
+
+.border-stitch-subtle {
+  border-color: var(--border-subtle);
+}
+
+.text-stitch-primary {
+  color: #FA4616;
+}
+
+.text-stitch-tint {
+  color: #F5A894;
+}
+
+.text-stitch-secondary {
+  color: #8DA4EF;
+}
+
+.text-stitch-muted {
+  color: var(--text-secondary);
+}
+
+.bg-stitch-primary {
+  background-color: #FA4616;
+}
+
+.hover\:bg-stitch-primary-hover:hover {
+  background-color: #ff5c2e;
+}
+
+/* =========================================================
+   LIGHT MODE OVERRIDES FOR HARDCODED STITCH COLOR UTILITIES
+   ========================================================= */
+
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #F6F8FA !important;
+  color: #1F2328 !important;
+}
+
+/* Backgrounds in Light Mode */
+html.light .bg-\[\#0D1117\] {
+  background-color: #F6F8FA !important;
+}
+
+html.light .bg-\[\#161B22\] {
+  background-color: #FFFFFF !important;
+}
+
+html.light .bg-\[\#1A1D24\] {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+html.light .bg-\[\#0D0F14\] {
+  background-color: #F0F2F5 !important;
+}
+
+html.light .bg-\[\#0D0F14\]\/70,
+html.light .bg-\[\#0D0F14\]\/40 {
+  background-color: #F8FAFC !important;
+}
+
+html.light .bg-\[\#21262D\] {
+  background-color: #F0F2F5 !important;
+}
+
+html.light .bg-\[\#21262D\]\/40,
+html.light .bg-\[\#21262D\]\/70 {
+  background-color: #F8FAFC !important;
+}
+
+html.light .bg-\[\#161B22\]\/90 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+html.light .bg-\[\#161B22\]\/95 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+html.light .bg-\[\#161B22\]\/80 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+html.light .bg-\[\#0D1117\]\/80 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+html.light .bg-\[\#0D1117\]\/90 {
+  background-color: rgba(246, 248, 250, 0.9) !important;
+}
+
+/* Event Badge Overlay & Poster Placeholder in Light & Dark Mode */
+.event-badge-overlay {
+  background-color: rgba(13, 17, 23, 0.85);
+  color: #F0F6FC;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+}
+
+html.light .event-badge-overlay {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  color: #1F2328 !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  font-weight: 600;
+}
+
+.event-poster-placeholder {
+  background: linear-gradient(135deg, #161B22 0%, #21262D 100%);
+  color: #8B949E;
+}
+
+html.light .event-poster-placeholder {
+  background: linear-gradient(135deg, #F0F2F5 0%, #E1E4E8 100%) !important;
+  color: #57606A !important;
+}
+
+/* Hero Revenue Card in Light Mode */
+html.light .hero-revenue-card {
+  background: linear-gradient(135deg, #FFFFFF 0%, #FFF9F6 50%, #FFF1EC 100%) !important;
+  border-color: rgba(255, 90, 31, 0.35) !important;
+  box-shadow: 0 10px 25px -5px rgba(255, 90, 31, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Borders in Light Mode */
+html.light .border-\[\#30363D\] {
+  border-color: #D0D7DE !important;
+}
+
+html.light .border-\[\#30363D\]\/60,
+html.light .border-\[\#30363D\]\/50,
+html.light .border-\[\#30363D\]\/40 {
+  border-color: #E1E4E8 !important;
+}
+
+html.light .border-\[\#21262D\] {
+  border-color: #E1E4E8 !important;
+}
+
+html.light .divide-\[\#21262D\] > * + * {
+  border-color: #E1E4E8 !important;
+}
+
+html.light .divide-\[\#30363D\] > * + * {
+  border-color: #D0D7DE !important;
+}
+
+/* Typography in Light Mode */
+html.light .text-\[\#F0F6FC\] {
+  color: #1F2328 !important;
+}
+
+html.light .text-\[\#E6EDF3\] {
+  color: #1F2328 !important;
+}
+
+html.light .text-\[\#8B949E\] {
+  color: #57606A !important;
+}
+
+html.light .text-\[\#9CA3AF\] {
+  color: #57606A !important;
+}
+
+html.light .text-\[\#6E7681\] {
+  color: #656D76 !important;
+}
+
+html.light .text-\[\#F5A894\] {
+  color: #C0350B !important;
+}
+
+html.light .text-\[\#FFA07A\] {
+  color: #B43407 !important;
+}
+
+html.light .text-\[\#8DA4EF\] {
+  color: #003087 !important;
+}
+
+/* Status Badges & Alerts in Light Mode */
+html.light .bg-rose-950\/40 {
+  background-color: #FEE2E2 !important;
+}
+html.light .bg-rose-950\/20 {
+  background-color: #FEF2F2 !important;
+}
+html.light .border-rose-800\/60 {
+  border-color: #FECACA !important;
+}
+html.light .text-rose-400 {
+  color: #B91C1C !important;
+  font-weight: 600;
+}
+html.light .text-rose-300 {
+  color: #991B1B !important;
+  font-weight: 600;
+}
+
+html.light .bg-emerald-950\/40 {
+  background-color: #DCFCE7 !important;
+}
+html.light .border-emerald-800\/60 {
+  border-color: #BBF7D0 !important;
+}
+html.light .text-emerald-400 {
+  color: #15803D !important;
+  font-weight: 600;
+}
+html.light .text-emerald-300 {
+  color: #15803D !important;
+  font-weight: 600;
+}
+
+html.light .bg-blue-950\/40 {
+  background-color: #DBEAFE !important;
+}
+html.light .border-blue-800\/60 {
+  border-color: #BFDBFE !important;
+}
+html.light .text-blue-400 {
+  color: #1D4ED8 !important;
+  font-weight: 600;
+}
+html.light .text-blue-300 {
+  color: #1D4ED8 !important;
+  font-weight: 600;
+}
+
+html.light .bg-amber-950\/40 {
+  background-color: #FEF3C7 !important;
+}
+html.light .border-amber-800\/60 {
+  border-color: #FDE68A !important;
+}
+html.light .text-amber-400 {
+  color: #B45309 !important;
+  font-weight: 600;
+}
+html.light .text-amber-300 {
+  color: #B45309 !important;
+  font-weight: 600;
+}
+
+html.light .bg-orange-950\/40 {
+  background-color: #FFEDD5 !important;
+}
+html.light .border-orange-800\/60 {
+  border-color: #FED7AA !important;
+}
+html.light .text-orange-400 {
+  color: #C2410C !important;
+  font-weight: 600;
+}
+html.light .text-orange-300 {
+  color: #C2410C !important;
+  font-weight: 600;
+}
+
+html.light .bg-purple-950\/40 {
+  background-color: #F3E8FF !important;
+}
+html.light .border-purple-800\/60 {
+  border-color: #E9D5FF !important;
+}
+html.light .text-purple-400 {
+  color: #7E22CE !important;
+  font-weight: 600;
+}
+
+/* Fallback for /50 opacity variations */
+html.light .bg-yellow-950\/50,
+html.light .bg-amber-950\/50 {
+  background-color: #FEF3C7 !important;
+}
+html.light .bg-emerald-950\/50 {
+  background-color: #DCFCE7 !important;
+}
+html.light .bg-rose-950\/50 {
+  background-color: #FEE2E2 !important;
+}
+html.light .bg-orange-950\/50 {
+  background-color: #FFEDD5 !important;
+}
+html.light .bg-blue-950\/50 {
+  background-color: #DBEAFE !important;
+}
+html.light .text-yellow-300 {
+  color: #B45309 !important;
+  font-weight: 600;
+}
+
+/* Form Inputs, Selects & Textareas in Light Mode */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light select,
+html.light textarea {
+  color: #1F2328;
+  background-color: #FFFFFF;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #8C959F !important;
+}
+
+/* Hover States in Light Mode */
+html.light .hover\:bg-\[\#21262D\]:hover {
+  background-color: #EAEFF5 !important;
+}
+
+html.light .hover\:bg-\[\#30363D\]:hover {
+  background-color: #DDE3EA !important;
+}
+
+html.light .hover\:bg-\[\#21262D\]\/60:hover {
+  background-color: #F1F5F9 !important;
+}
+
+html.light .hover\:text-\[\#F0F6FC\]:hover {
+  color: #090D11 !important;
+}
+
+/* Skeletons in Light Mode */
+html.light .animate-pulse {
+  background-color: #E2E8F0 !important;
+}
+
+/* Table Row Hovers in Light Mode */
+html.light tbody tr:hover {
+  background-color: #F8FAFC !important;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6E7681;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: #F6F8FA;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #D0D7DE;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #AFB8C1;
+}
