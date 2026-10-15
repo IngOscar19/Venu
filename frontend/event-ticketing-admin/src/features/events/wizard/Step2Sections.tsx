@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, Trash2, Loader2, CheckCircle2 } from 'lucide-react'
 
 export interface WizardSectionItem {
+  id?: string
   name: string
   description?: string
   capacity: number
@@ -13,10 +14,11 @@ export interface WizardSectionItem {
 interface Step2SectionsProps {
   sections: WizardSectionItem[]
   maxCapacity: number
-  onAddSection: (section: WizardSectionItem) => void
-  onRemoveSection: (index: number) => void
+  onAddSection: (section: WizardSectionItem) => Promise<void> | void
+  onRemoveSection: (index: number) => Promise<void> | void
   onNext: () => void
   onBack: () => void
+  isEditMode?: boolean
 }
 
 export function Step2Sections({
@@ -26,15 +28,18 @@ export function Step2Sections({
   onRemoveSection,
   onNext,
   onBack,
+  isEditMode = false,
 }: Step2SectionsProps) {
   const [name, setName] = useState('')
   const [capacity, setCapacity] = useState('')
   const [price, setPrice] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isAdding, setIsAdding] = useState(false)
+  const [deletingIdx, setDeletingIdx] = useState<number | null>(null)
 
   const currentCapacity = sections.reduce((sum, s) => sum + (s.capacity || 0), 0)
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     setError(null)
     if (!name.trim() || !capacity || !price) {
       setError('Todos los campos son obligatorios.')
@@ -50,19 +55,38 @@ export function Step2Sections({
     }
 
     if (currentCapacity + capNum > maxCapacity) {
-      setError(`La capacidad acumulada (${currentCapacity + capNum}) supera el aforo total (${maxCapacity}).`)
+      setError(`La capacidad acumulada (${currentCapacity + capNum}) supera el aforo total del evento (${maxCapacity}).`)
       return
     }
 
-    onAddSection({
-      name: name.trim(),
-      capacity: capNum,
-      basePrice: priceNum,
-    })
+    setIsAdding(true)
+    try {
+      await onAddSection({
+        name: name.trim(),
+        capacity: capNum,
+        basePrice: priceNum,
+      })
 
-    setName('')
-    setCapacity('')
-    setPrice('')
+      setName('')
+      setCapacity('')
+      setPrice('')
+    } catch (err: any) {
+      setError(err?.message || 'Error al agregar la sección.')
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  const handleRemove = async (idx: number) => {
+    setError(null)
+    setDeletingIdx(idx)
+    try {
+      await onRemoveSection(idx)
+    } catch (err: any) {
+      setError(err?.message || 'Error al eliminar la sección.')
+    } finally {
+      setDeletingIdx(null)
+    }
   }
 
   return (
@@ -94,7 +118,7 @@ export function Step2Sections({
           </div>
         ) : (
           sections.map((s, idx) => (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-[#161B22] transition-colors">
+            <div key={s.id || idx} className="p-4 flex items-center justify-between hover:bg-[#161B22] transition-colors">
               <div>
                 <h4 className="font-semibold text-xs text-[#F0F6FC]">{s.name}</h4>
                 <p className="text-[11px] font-mono text-[#8B949E]">{(s.capacity ?? 0).toLocaleString()} boletos disponibles</p>
@@ -103,10 +127,16 @@ export function Step2Sections({
                 <span className="text-sm font-mono font-bold text-[#F5A894]">${(s.basePrice ?? 0).toFixed(2)}</span>
                 <button
                   type="button"
-                  onClick={() => onRemoveSection(idx)}
-                  className="p-1.5 text-[#8B949E] hover:text-rose-400 rounded-lg transition-colors"
+                  disabled={deletingIdx === idx}
+                  onClick={() => handleRemove(idx)}
+                  className="p-1.5 text-[#8B949E] hover:text-rose-400 disabled:opacity-50 rounded-lg transition-colors"
+                  title="Eliminar sección"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {deletingIdx === idx ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -124,12 +154,14 @@ export function Step2Sections({
             placeholder="Nombre (ej. VIP, General)"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            disabled={isAdding}
           />
           <Input
             placeholder="Capacidad"
             type="number"
             value={capacity}
             onChange={(e) => setCapacity(e.target.value)}
+            disabled={isAdding}
           />
           <Input
             placeholder="Precio ($)"
@@ -137,6 +169,7 @@ export function Step2Sections({
             step="0.01"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
+            disabled={isAdding}
           />
         </div>
         <Button
@@ -144,6 +177,7 @@ export function Step2Sections({
           variant="secondary"
           size="sm"
           onClick={handleAdd}
+          isLoading={isAdding}
           className="gap-1.5 font-semibold text-xs"
         >
           <Plus className="w-3.5 h-3.5" />

@@ -32,6 +32,7 @@ interface Step1GeneralProps {
   eventTypes?: EventTypeDto[]
   isLoading?: boolean
   onSubmit: (values: Step1FormValues) => void
+  isEditMode?: boolean
 }
 
 export function Step1General({
@@ -39,6 +40,7 @@ export function Step1General({
   eventTypes,
   isLoading,
   onSubmit,
+  isEditMode = false,
 }: Step1GeneralProps) {
   const {
     register,
@@ -67,7 +69,7 @@ export function Step1General({
   })
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form id="step1-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <Input
@@ -211,7 +213,7 @@ export function Step1General({
 
       <div className="flex justify-end pt-4 border-t border-[#21262D]">
         <Button type="submit" variant="default" size="lg" isLoading={isLoading} className="gap-2 font-bold">
-          Continuar a Secciones
+          {isEditMode ? 'Guardar Cambios de Información General' : 'Continuar a Secciones'}
           <ArrowRight className="w-4 h-4" />
         </Button>
       </div>

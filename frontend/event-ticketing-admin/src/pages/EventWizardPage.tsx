@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { eventService } from '@/features/events/services/eventService'
@@ -26,6 +26,7 @@ export function EventWizardPage() {
   const [images, setImages] = useState<UploadedMediaItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const pendingStepRef = useRef<number | null>(null)
 
   const { data: eventTypes } = useQuery({
     queryKey: QUERY_KEYS.eventTypes.all,
@@ -58,6 +59,7 @@ export function EventWizardPage() {
       if (existingEvent.sections && existingEvent.sections.length > 0) {
         setSections(
           existingEvent.sections.map((sec) => ({
+            id: sec.id,
             name: sec.name,
             description: sec.description,
             capacity: sec.capacity,
@@ -76,7 +78,7 @@ export function EventWizardPage() {
           seenIds.add(img.id)
 
           if (img.type === 'POSTER') {
-            if (foundPoster) continue // omitir posters viejos duplicados
+            if (foundPoster) continue
             foundPoster = true
           }
 
@@ -118,20 +120,38 @@ export function EventWizardPage() {
         setCreatedEventId(res.id)
       } else {
         await eventService.update(createdEventId, payload)
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
       }
 
       // Automatically refresh event lists & dashboard so changes are instantly visible
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.all })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.stats })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.all })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.stats })
 
-      setCurrentStep(2)
+      const next = pendingStepRef.current || 2
+      pendingStepRef.current = null
+      setCurrentStep(next)
     } catch (err: any) {
-      setError(err.message || 'Error al guardar los datos del evento.')
+      setError(err.response?.data?.message || err.message || 'Error al guardar los datos del evento.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleStepClick = (targetStep: number) => {
+    if (targetStep === currentStep) return
+
+    // If currently editing Step 1, auto-submit the form so modifications are persisted to DB
+    if (currentStep === 1) {
+      const formEl = document.getElementById('step1-form') as HTMLFormElement | null
+      if (formEl) {
+        pendingStepRef.current = targetStep
+        formEl.requestSubmit()
+        return
+      }
+    }
+
+    setCurrentStep(targetStep)
   }
 
   const handleAddSection = async (section: WizardSectionItem) => {
@@ -139,22 +159,38 @@ export function EventWizardPage() {
       setError('Debes guardar la información general en el Paso 1 antes de agregar secciones.')
       return
     }
+    setError(null)
     try {
-      await eventService.addSection(createdEventId, {
+      const res = await eventService.addSection(createdEventId, {
         name: section.name,
         capacity: section.capacity,
         basePrice: section.basePrice,
       })
-      setSections([...sections, section])
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      setSections((prev) => [...prev, { ...section, id: res.id }])
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
     } catch (err: any) {
-      setError(err.message || 'Error al guardar la sección.')
+      const msg = err.response?.data?.message || err.message || 'Error al guardar la sección.'
+      setError(msg)
+      throw new Error(msg)
     }
   }
 
-  const handleRemoveSection = (idx: number) => {
-    setSections(sections.filter((_, i) => i !== idx))
+  const handleRemoveSection = async (idx: number) => {
+    const section = sections[idx]
+    setError(null)
+    if (createdEventId && section?.id) {
+      try {
+        await eventService.deleteSection(createdEventId, section.id)
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      } catch (err: any) {
+        const msg = err.response?.data?.message || err.message || 'Error al eliminar la sección en el servidor.'
+        setError(msg)
+        throw new Error(msg)
+      }
+    }
+    setSections((prev) => prev.filter((_, i) => i !== idx))
   }
 
   const handleUploadImage = async (file: File, type: 'POSTER' | 'GALLERY') => {
@@ -166,7 +202,6 @@ export function EventWizardPage() {
     try {
       const res = await eventService.uploadImage(createdEventId, file, type, images.length + 1)
       if (type === 'POSTER') {
-        // Replace existing poster if present
         setImages((prev) => [
           ...prev.filter((i) => i.type !== 'POSTER'),
           { id: res.id, url: res.url, type: res.type },
@@ -177,10 +212,10 @@ export function EventWizardPage() {
           { id: res.id, url: res.url, type: res.type },
         ])
       }
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
     } catch (err: any) {
-      setError(err.message || 'Error al subir la imagen al servidor.')
+      setError(err.response?.data?.message || err.message || 'Error al subir la imagen al servidor.')
       throw err
     } finally {
       setIsSubmitting(false)
@@ -191,11 +226,46 @@ export function EventWizardPage() {
     if (!createdEventId) return
     try {
       await eventService.deleteImage(createdEventId, imageId)
-      setImages(images.filter((img) => img.id !== imageId))
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      setImages((prev) => prev.filter((img) => img.id !== imageId))
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
     } catch (err: any) {
-      setError(err.message || 'Error al eliminar la imagen.')
+      setError(err.response?.data?.message || err.message || 'Error al eliminar la imagen.')
+    }
+  }
+
+  const handleSaveAndFinish = async () => {
+    if (!createdEventId) return
+    setIsSubmitting(true)
+    try {
+      if (generalData) {
+        const payload = {
+          name: generalData.name,
+          description: generalData.description,
+          eventTypeId: generalData.eventTypeId || undefined,
+          startDate: new Date(generalData.startDate).toISOString(),
+          endDate: new Date(generalData.endDate).toISOString(),
+          startTime: generalData.startTime.includes(':') && generalData.startTime.length === 5 ? `${generalData.startTime}:00` : generalData.startTime,
+          endTime: generalData.endTime.includes(':') && generalData.endTime.length === 5 ? `${generalData.endTime}:00` : generalData.endTime,
+          venueName: generalData.venueName,
+          address: generalData.address,
+          city: generalData.city,
+          state: generalData.state,
+          capacity: Number(generalData.capacity),
+          latitude: generalData.latitude,
+          longitude: generalData.longitude,
+        }
+        await eventService.update(createdEventId, payload)
+      }
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.all })
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.stats })
+      navigate(`/events/${createdEventId}`)
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Error al guardar los cambios del evento.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -208,9 +278,9 @@ export function EventWizardPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.stats })
-      navigate('/events')
+      navigate(`/events/${createdEventId}`)
     } catch (err: any) {
-      setError(err.message || 'Error al publicar el evento.')
+      setError(err.response?.data?.message || err.message || 'Error al publicar el evento.')
     } finally {
       setIsSubmitting(false)
     }
@@ -222,7 +292,7 @@ export function EventWizardPage() {
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[#FA4616]" />
           <p className="text-xs font-semibold text-[#8B949E] font-mono">
-            Cargando borrador del evento...
+            Cargando datos del evento...
           </p>
         </div>
       </div>
@@ -239,7 +309,7 @@ export function EventWizardPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <PageHeader
-        title={isEditMode ? 'Editar Borrador de Evento' : 'Crear Nuevo Evento'}
+        title={isEditMode ? 'Editar Evento' : 'Crear Nuevo Evento'}
         description={
           isEditMode
             ? 'Modifica los datos generales, secciones, boletos o imágenes de tu evento'
@@ -260,9 +330,8 @@ export function EventWizardPage() {
                 key={s.number}
                 type="button"
                 onClick={() => {
-                  // Allow clicking previous steps or steps if event was created/loaded
                   if (createdEventId || isCompleted) {
-                    setCurrentStep(s.number)
+                    handleStepClick(s.number)
                   }
                 }}
                 disabled={!createdEventId && s.number > currentStep}
@@ -315,6 +384,7 @@ export function EventWizardPage() {
             eventTypes={eventTypes}
             isLoading={isSubmitting}
             onSubmit={handleStep1Submit}
+            isEditMode={isEditMode}
           />
         )}
 
@@ -326,6 +396,7 @@ export function EventWizardPage() {
             onRemoveSection={handleRemoveSection}
             onNext={() => setCurrentStep(3)}
             onBack={() => setCurrentStep(1)}
+            isEditMode={isEditMode}
           />
         )}
 
@@ -346,9 +417,10 @@ export function EventWizardPage() {
             sections={sections}
             hasPoster={images.some((i) => i.type === 'POSTER')}
             isSubmitting={isSubmitting}
+            isEditMode={isEditMode}
             onBack={() => setCurrentStep(3)}
-            onSaveDraft={() => navigate('/events')}
-            onPublish={handlePublish}
+            onSaveDraft={handleSaveAndFinish}
+            onPublish={isEditMode ? handleSaveAndFinish : handlePublish}
           />
         )}
       </div>
