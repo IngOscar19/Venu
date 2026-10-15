@@ -145,7 +145,7 @@ export function Step1General({
           <Input
             label="Dirección Completa"
             placeholder="Calle, número, colonia..."
-            helperText="✨ Tip: Al marcar o arrastrar el pin en el mapa, la dirección, ciudad y estado se autocompletarán aquí."
+            helperText="✨ Tip: Puedes escribir la dirección y ciudad aquí para que el mapa se ubique automáticamente, o arrastrar el pin en el mapa para autocompletar el texto."
             error={errors.address?.message}
             {...register('address')}
           />
@@ -164,6 +164,9 @@ export function Step1General({
             latitude={watch('latitude')}
             longitude={watch('longitude')}
             venueName={watch('venueName')}
+            address={watch('address')}
+            city={watch('city')}
+            state={watch('state')}
             addressQuery={[watch('address'), watch('city'), watch('state')].filter(Boolean).join(', ')}
             onCoordinatesChange={(lat, lng) => {
               setValue('latitude', lat, { shouldValidate: true, shouldDirty: true })

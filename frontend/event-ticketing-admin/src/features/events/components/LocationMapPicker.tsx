@@ -20,6 +20,9 @@ interface LocationMapPickerProps {
   onAddressResolved?: (resolved: ResolvedAddress) => void
   addressQuery?: string
   venueName?: string
+  address?: string
+  city?: string
+  state?: string
 }
 
 interface MapStyleConfig {
@@ -52,7 +55,7 @@ const MAP_STYLES: Record<'streets' | 'hybrid' | 'dark', MapStyleConfig> = {
     options: {
       maxZoom: 20,
       subdomains: ['a', 'b', 'c', 'd'],
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     },
   },
 }
@@ -131,6 +134,91 @@ function parseNominatimAddress(data: any): ResolvedAddress {
   }
 }
 
+// Progressive Geocode: Tries specific query, then stripped street, venue, etc.
+async function forwardGeocodeProgressive(
+  venue: string,
+  address: string,
+  city: string,
+  state: string,
+  signal?: AbortSignal
+): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  const cleanAddr = address.trim()
+  const cleanCity = city.trim()
+  const cleanState = state.trim()
+  const cleanVenue = venue.trim()
+
+  const firstAddrSegment = cleanAddr.split(',')[0].trim()
+  const cleanStreetOnly = firstAddrSegment.replace(/\b(no\.?|num\.?|#)\s*\d+.*$/i, '').trim()
+  const segments = cleanAddr.split(',').map((s) => s.trim()).filter(Boolean)
+
+  const candidates: string[] = []
+
+  // 1. Full combination: Venue + Address + City + State
+  if (cleanVenue && cleanAddr && cleanCity) {
+    candidates.push([cleanVenue, cleanAddr, cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // 2. Full Address + City + State
+  if (cleanAddr && cleanCity) {
+    candidates.push([cleanAddr, cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // 3. First street segment + City + State (handles addresses with industrial parks, zip codes)
+  if (firstAddrSegment && cleanCity && firstAddrSegment !== cleanAddr) {
+    candidates.push([firstAddrSegment, cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // 4. Clean street without house number + City + State
+  if (cleanStreetOnly && cleanStreetOnly !== firstAddrSegment && cleanCity) {
+    candidates.push([cleanStreetOnly, cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // 5. Venue + City + State
+  if (cleanVenue && cleanCity) {
+    candidates.push([cleanVenue, cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // 6. Secondary neighborhood / park / zone + City
+  if (segments.length > 1 && cleanCity) {
+    candidates.push([segments[1], cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // 7. City + State fallback
+  if (cleanCity) {
+    candidates.push([cleanCity, cleanState].filter(Boolean).join(', '))
+  }
+
+  // Deduplicate candidates
+  const uniqueCandidates = Array.from(new Set(candidates.filter(Boolean)))
+
+  for (const q of uniqueCandidates) {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
+        {
+          headers: {
+            'Accept-Language': 'es',
+          },
+          signal,
+        }
+      )
+      if (!res.ok) continue
+      const data = await res.json()
+      if (data && data.length > 0) {
+        return {
+          lat: Number(parseFloat(data[0].lat).toFixed(6)),
+          lng: Number(parseFloat(data[0].lon).toFixed(6)),
+          displayName: data[0].display_name,
+        }
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') throw err
+    }
+  }
+
+  return null
+}
+
 export function LocationMapPicker({
   latitude,
   longitude,
@@ -138,16 +226,28 @@ export function LocationMapPicker({
   onAddressResolved,
   addressQuery = '',
   venueName = '',
+  address = '',
+  city = '',
+  state = '',
 }: LocationMapPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const markerRef = useRef<L.Marker | null>(null)
   const tileLayerRef = useRef<L.TileLayer | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const autoGeocodeAbortRef = useRef<AbortController | null>(null)
+
+  // Tracking refs to avoid infinite loops between map drag and text inputs
+  const lastResolvedByMapRef = useRef<string>('')
+  const lastAutoGeocodedSigRef = useRef<string>('')
+  const isReverseGeocodingRef = useRef<boolean>(false)
 
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('streets')
   const [pasteInput, setPasteInput] = useState('')
-  const [pasteFeedback, setPasteFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [pasteFeedback, setPasteFeedback] = useState<{
+    type: 'success' | 'error' | 'info'
+    message: string
+  } | null>(null)
   const [isSearchingAddress, setIsSearchingAddress] = useState(false)
   const [isLocatingCurrent, setIsLocatingCurrent] = useState(false)
   const [isResolvingAddress, setIsResolvingAddress] = useState(false)
@@ -181,6 +281,7 @@ export function LocationMapPicker({
     const controller = new AbortController()
     abortControllerRef.current = controller
 
+    isReverseGeocodingRef.current = true
     setIsResolvingAddress(true)
     try {
       const res = await fetch(
@@ -195,6 +296,11 @@ export function LocationMapPicker({
       if (!res.ok) throw new Error('Reverse geocode failed')
       const data = await res.json()
       const resolved = parseNominatimAddress(data)
+
+      // Record signature to avoid triggering auto-geocode back on the inputs
+      const mapSig = `${resolved.venueName || ''}|${resolved.address || ''}|${resolved.city || ''}|${resolved.state || ''}`.trim()
+      lastResolvedByMapRef.current = mapSig
+      lastAutoGeocodedSigRef.current = mapSig
 
       onAddressResolvedRef.current(resolved)
 
@@ -212,6 +318,7 @@ export function LocationMapPicker({
         })
       }
     } finally {
+      isReverseGeocodingRef.current = false
       setIsResolvingAddress(false)
     }
   }, [])
@@ -220,6 +327,98 @@ export function LocationMapPicker({
   useEffect(() => {
     reverseGeocodeRef.current = fetchReverseGeocode
   }, [fetchReverseGeocode])
+
+  // Forward Geocode executor (used both automatically and by the button)
+  const executeForwardGeocode = useCallback(
+    async (isAutomatic = false) => {
+      const currentSig = `${venueName || ''}|${address || addressQuery || ''}|${city || ''}|${state || ''}`.trim()
+      lastAutoGeocodedSigRef.current = currentSig
+
+      if (autoGeocodeAbortRef.current) {
+        autoGeocodeAbortRef.current.abort()
+      }
+      const controller = new AbortController()
+      autoGeocodeAbortRef.current = controller
+
+      setIsSearchingAddress(true)
+      if (isAutomatic) {
+        setPasteFeedback({
+          type: 'info',
+          message: '🔍 Ubicando dirección en el mapa...',
+        })
+      }
+
+      try {
+        const result = await forwardGeocodeProgressive(
+          venueName,
+          address || addressQuery,
+          city,
+          state,
+          controller.signal
+        )
+
+        if (result) {
+          onCoordinatesChange(result.lat, result.lng)
+          if (markerRef.current) {
+            markerRef.current.setLatLng([result.lat, result.lng])
+          }
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo([result.lat, result.lng], 16)
+          }
+          setPasteFeedback({
+            type: 'success',
+            message: `📍 Ubicado automáticamente: ${result.displayName.substring(0, 65)}...`,
+          })
+        } else if (!isAutomatic) {
+          setPasteFeedback({
+            type: 'error',
+            message: 'No pudimos encontrar la ubicación exacta con ese texto. Puedes colocar el pin en el mapa.',
+          })
+        } else {
+          // If auto search couldn't pinpoint, clear info feedback quietly
+          setPasteFeedback(null)
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError' && !isAutomatic) {
+          setPasteFeedback({
+            type: 'error',
+            message: 'Error al consultar la ubicación. Puedes ubicar el pin haciendo clic en el mapa.',
+          })
+        }
+      } finally {
+        setIsSearchingAddress(false)
+      }
+    },
+    [venueName, address, addressQuery, city, state, onCoordinatesChange]
+  )
+
+  // AUTOMATIC GEOCODING: When user writes address & city in form, auto-position the pin on the map
+  useEffect(() => {
+    // If currently reverse geocoding from a pin drag, ignore
+    if (isReverseGeocodingRef.current) return
+
+    const currentSig = `${venueName || ''}|${address || addressQuery || ''}|${city || ''}|${state || ''}`.trim()
+
+    // If matches the address just emitted by map reverse geocode, ignore
+    if (currentSig === lastResolvedByMapRef.current) return
+
+    // Require at least a street address (>= 4 chars) and city (>= 2 chars), or venue + city
+    const hasEnough =
+      ((address || addressQuery).trim().length >= 4 && city.trim().length >= 2) ||
+      (venueName.trim().length >= 3 && city.trim().length >= 2)
+
+    if (!hasEnough) return
+
+    // If this exact text signature has already been geocoded, avoid re-fetching
+    if (currentSig === lastAutoGeocodedSigRef.current) return
+
+    // Debounce by 800ms to let user finish typing street/city without spamming requests
+    const timer = setTimeout(() => {
+      executeForwardGeocode(true)
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [venueName, address, addressQuery, city, state, executeForwardGeocode])
 
   // Switch Map Style (Calles OpenStreetMap | Satélite Esri | Nocturno CartoDB)
   const handleSwitchLayer = (styleKey: MapStyleKey) => {
@@ -295,6 +494,9 @@ export function LocationMapPicker({
       clearTimeout(timer)
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
+      }
+      if (autoGeocodeAbortRef.current) {
+        autoGeocodeAbortRef.current.abort()
       }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
@@ -396,60 +598,6 @@ export function LocationMapPicker({
     }
   }
 
-  // Geocoding with OpenStreetMap Nominatim
-  const handleSearchAddress = async () => {
-    const query = [venueName, addressQuery].filter(Boolean).join(', ')
-    if (!query.trim()) {
-      setPasteFeedback({
-        type: 'error',
-        message: 'Escribe primero el nombre del recinto o dirección para buscarlo.',
-      })
-      return
-    }
-
-    try {
-      setIsSearchingAddress(true)
-      setPasteFeedback(null)
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-        {
-          headers: {
-            'Accept-Language': 'es',
-          },
-        }
-      )
-      const data = await res.json()
-      if (data && data.length > 0) {
-        const foundLat = Number(parseFloat(data[0].lat).toFixed(6))
-        const foundLng = Number(parseFloat(data[0].lon).toFixed(6))
-
-        onCoordinatesChange(foundLat, foundLng)
-        if (markerRef.current) {
-          markerRef.current.setLatLng([foundLat, foundLng])
-        }
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo([foundLat, foundLng], 16)
-        }
-        setPasteFeedback({
-          type: 'success',
-          message: `Ubicado: ${data[0].display_name.substring(0, 60)}...`,
-        })
-      } else {
-        setPasteFeedback({
-          type: 'error',
-          message: `No se encontró "${query}". Haz clic directamente en el mapa para ubicar el pin.`,
-        })
-      }
-    } catch {
-      setPasteFeedback({
-        type: 'error',
-        message: 'Error al consultar el servicio de búsqueda. Puedes colocar el pin haciendo clic en el mapa.',
-      })
-    } finally {
-      setIsSearchingAddress(false)
-    }
-  }
-
   // Current Geolocation
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -501,7 +649,7 @@ export function LocationMapPicker({
               Ubicación en Mapa Interactivo
             </h4>
             <p className="text-[11px] text-[var(--text-secondary)]">
-              Haz clic o arrastra el marcador para autocompletar la dirección exacta
+              Escribe la dirección arriba o arrastra el marcador para autocompletar en ambas direcciones
             </p>
           </div>
         </div>
@@ -518,15 +666,20 @@ export function LocationMapPicker({
             <span>{isLocatingCurrent ? 'Localizando...' : 'Mi ubicación'}</span>
           </button>
 
-          {(venueName || addressQuery) && (
+          {(venueName || address || addressQuery) && (
             <button
               type="button"
-              onClick={handleSearchAddress}
+              onClick={() => executeForwardGeocode(false)}
               disabled={isSearchingAddress}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#FA4616]/40 bg-[#FA4616]/10 px-2.5 py-1 text-[11px] font-mono font-semibold text-[#FA4616] hover:bg-[#FA4616]/20 transition-colors"
+              title="Buscar en el mapa según el texto escrito arriba"
             >
-              <Search className="h-3.5 w-3.5" />
-              <span>{isSearchingAddress ? 'Buscando...' : 'Ubicar por texto'}</span>
+              {isSearchingAddress ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Search className="h-3.5 w-3.5" />
+              )}
+              <span>{isSearchingAddress ? 'Ubicando...' : 'Ubicar por texto'}</span>
             </button>
           )}
         </div>
@@ -567,11 +720,15 @@ export function LocationMapPicker({
             className={`mt-2 flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1 rounded-lg ${
               pasteFeedback.type === 'success'
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                : pasteFeedback.type === 'info'
+                ? 'bg-[#FA4616]/10 text-[#FA4616] border border-[#FA4616]/30'
                 : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
             }`}
           >
             {pasteFeedback.type === 'success' ? (
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            ) : pasteFeedback.type === 'info' ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
             ) : (
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             )}
@@ -584,11 +741,13 @@ export function LocationMapPicker({
       <div className="relative h-[480px] sm:h-[500px] w-full overflow-hidden rounded-xl border border-[var(--border-color)] shadow-inner bg-[var(--bg-main)] z-0">
         <div ref={mapContainerRef} className="h-full w-full" />
 
-        {/* Loading overlay when reverse geocoding */}
-        {isResolvingAddress && (
+        {/* Loading overlay when geocoding or reverse geocoding */}
+        {(isResolvingAddress || isSearchingAddress) && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1001] inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-surface)] px-3 py-1 text-[11px] font-mono font-medium text-[#FA4616] border border-[#FA4616]/40 shadow-lg backdrop-blur-md animate-pulse">
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Autocompletando dirección...</span>
+            <span>
+              {isResolvingAddress ? 'Autocompletando dirección...' : 'Ubicando en mapa...'}
+            </span>
           </div>
         )}
 
