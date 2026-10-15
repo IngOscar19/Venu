@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Map, Marker, NavigationControl } from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { MapPin, Search, Compass, ExternalLink, Sparkles, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 export interface ResolvedAddress {
@@ -22,15 +22,59 @@ interface LocationMapPickerProps {
   venueName?: string
 }
 
-const MAPTILER_KEY = 'PdInFiXeCh0BqtZ6W1Za'
+interface MapStyleConfig {
+  name: string
+  url: string
+  options: L.TileLayerOptions
+}
 
-const MAP_STYLES = {
-  streets: `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`,
-  hybrid: `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`,
-  dark: `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${MAPTILER_KEY}`,
-} as const
+const MAP_STYLES: Record<'streets' | 'hybrid' | 'dark', MapStyleConfig> = {
+  streets: {
+    name: 'Calles',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    options: {
+      maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+  },
+  hybrid: {
+    name: 'Satélite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    },
+  },
+  dark: {
+    name: 'Nocturno',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    options: {
+      maxZoom: 20,
+      subdomains: ['a', 'b', 'c', 'd'],
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    },
+  },
+}
 
 type MapStyleKey = keyof typeof MAP_STYLES
+
+// Custom Venú Orange Pin SVG Icon for Leaflet
+function createVenuPinIcon() {
+  return L.divIcon({
+    className: 'venu-pin-container',
+    html: `
+      <div style="position: relative; width: 34px; height: 44px; transform: translate(-17px, -44px); filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4)); cursor: grab;">
+        <svg width="34" height="44" viewBox="0 0 34 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17 0C7.611 0 0 7.611 0 17c0 12.8 17 27 17 27s17-14.2 17-27c0-9.389-7.611-17-17-17z" fill="#FA4616"/>
+          <circle cx="17" cy="16" r="6" fill="#FFFFFF"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+  })
+}
 
 // Helper: Parse Nominatim reverse geocode response to structured address
 function parseNominatimAddress(data: any): ResolvedAddress {
@@ -96,8 +140,9 @@ export function LocationMapPicker({
   venueName = '',
 }: LocationMapPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
-  const mapInstanceRef = useRef<Map | null>(null)
-  const markerRef = useRef<Marker | null>(null)
+  const mapInstanceRef = useRef<L.Map | null>(null)
+  const markerRef = useRef<L.Marker | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const [mapStyle, setMapStyle] = useState<MapStyleKey>('streets')
@@ -120,7 +165,7 @@ export function LocationMapPicker({
     !isNaN(longitude) &&
     (latitude !== 0 || longitude !== 0)
 
-  // Ref to onAddressResolved so Leaflet / MapLibre event listeners always access current callback
+  // Ref to onAddressResolved so Leaflet event listeners always access current callback
   const onAddressResolvedRef = useRef(onAddressResolved)
   useEffect(() => {
     onAddressResolvedRef.current = onAddressResolved
@@ -176,52 +221,64 @@ export function LocationMapPicker({
     reverseGeocodeRef.current = fetchReverseGeocode
   }, [fetchReverseGeocode])
 
-  // Switch Map Style (Streets v2, Satélite Híbrido, Nocturno)
+  // Switch Map Style (Calles OpenStreetMap | Satélite Esri | Nocturno CartoDB)
   const handleSwitchLayer = (styleKey: MapStyleKey) => {
     if (!mapInstanceRef.current) return
     setMapStyle(styleKey)
-    mapInstanceRef.current.setStyle(MAP_STYLES[styleKey])
+
+    if (tileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current)
+    }
+
+    const conf = MAP_STYLES[styleKey]
+    const newLayer = L.tileLayer(conf.url, conf.options).addTo(mapInstanceRef.current)
+    tileLayerRef.current = newLayer
   }
 
-  // Initialize MapLibre GL Map & Marker
+  // Initialize Leaflet Map & Marker
   useEffect(() => {
     if (!mapContainerRef.current) return
     if (mapInstanceRef.current) return
 
-    // Initialize MapLibre GL
-    const map = new Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLES.streets,
-      center: [currentLng, currentLat], // [lng, lat]
+    // Prevent Leaflet error if container already initialized
+    const container = mapContainerRef.current as any
+    if (container._leaflet_id) {
+      container._leaflet_id = null
+    }
+
+    // Initialize Map with zoom control
+    const map = L.map(mapContainerRef.current, {
+      center: [currentLat, currentLng],
       zoom: hasValidCoords ? 15 : 13,
+      zoomControl: true,
       attributionControl: false,
     })
 
-    // Navigation controls: Zoom in/out, Pitch/Rotate
-    map.addControl(new NavigationControl({ visualizePitch: true }), 'top-left')
+    // Add initial tile layer
+    const initialConf = MAP_STYLES.streets
+    const initialTile = L.tileLayer(initialConf.url, initialConf.options).addTo(map)
+    tileLayerRef.current = initialTile
 
-    // Venú Orange Draggable Marker
-    const marker = new Marker({
+    // Add draggable Venú Marker
+    const marker = L.marker([currentLat, currentLng], {
       draggable: true,
-      color: '#FA4616',
-    })
-      .setLngLat([currentLng, currentLat])
-      .addTo(map)
+      icon: createVenuPinIcon(),
+    }).addTo(map)
 
     // Drag-end handler: update coordinates and reverse-geocode
     marker.on('dragend', () => {
-      const lngLat = marker.getLngLat()
-      const fixedLat = Number(lngLat.lat.toFixed(6))
-      const fixedLng = Number(lngLat.lng.toFixed(6))
+      const pos = marker.getLatLng()
+      const fixedLat = Number(pos.lat.toFixed(6))
+      const fixedLng = Number(pos.lng.toFixed(6))
       onCoordinatesChange(fixedLat, fixedLng)
       reverseGeocodeRef.current?.(fixedLat, fixedLng)
     })
 
     // Click on map handler: move marker and reverse-geocode
-    map.on('click', (e) => {
-      marker.setLngLat(e.lngLat)
-      const fixedLat = Number(e.lngLat.lat.toFixed(6))
-      const fixedLng = Number(e.lngLat.lng.toFixed(6))
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      marker.setLatLng(e.latlng)
+      const fixedLat = Number(e.latlng.lat.toFixed(6))
+      const fixedLng = Number(e.latlng.lng.toFixed(6))
       onCoordinatesChange(fixedLat, fixedLng)
       reverseGeocodeRef.current?.(fixedLat, fixedLng)
     })
@@ -229,9 +286,9 @@ export function LocationMapPicker({
     mapInstanceRef.current = map
     markerRef.current = marker
 
-    // Invalidate container size after mount
+    // Invalidate container size after mount to prevent grey/empty tile bounds
     const timer = setTimeout(() => {
-      map.resize()
+      map.invalidateSize()
     }, 150)
 
     return () => {
@@ -239,23 +296,25 @@ export function LocationMapPicker({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
-      marker.remove()
-      map.remove()
-      mapInstanceRef.current = null
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
       markerRef.current = null
+      tileLayerRef.current = null
     }
   }, []) // Mount once
 
   // Sync marker position when coordinates change from outside
   useEffect(() => {
     if (hasValidCoords && markerRef.current && mapInstanceRef.current) {
-      const current = markerRef.current.getLngLat()
+      const current = markerRef.current.getLatLng()
       if (
         Math.abs(current.lat - latitude!) > 0.00001 ||
         Math.abs(current.lng - longitude!) > 0.00001
       ) {
-        markerRef.current.setLngLat([longitude!, latitude!])
-        mapInstanceRef.current.easeTo({ center: [longitude!, latitude!] })
+        markerRef.current.setLatLng([latitude!, longitude!])
+        mapInstanceRef.current.panTo([latitude!, longitude!])
       }
     }
   }, [latitude, longitude, hasValidCoords])
@@ -321,10 +380,10 @@ export function LocationMapPicker({
 
       onCoordinatesChange(fixedLat, fixedLng)
       if (markerRef.current) {
-        markerRef.current.setLngLat([fixedLng, fixedLat])
+        markerRef.current.setLatLng([fixedLat, fixedLng])
       }
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo({ center: [fixedLng, fixedLat], zoom: 16 })
+        mapInstanceRef.current.flyTo([fixedLat, fixedLng], 16)
       }
       setPasteInput('')
       fetchReverseGeocode(fixedLat, fixedLng)
@@ -366,10 +425,10 @@ export function LocationMapPicker({
 
         onCoordinatesChange(foundLat, foundLng)
         if (markerRef.current) {
-          markerRef.current.setLngLat([foundLng, foundLat])
+          markerRef.current.setLatLng([foundLat, foundLng])
         }
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo({ center: [foundLng, foundLat], zoom: 16 })
+          mapInstanceRef.current.flyTo([foundLat, foundLng], 16)
         }
         setPasteFeedback({
           type: 'success',
@@ -411,10 +470,10 @@ export function LocationMapPicker({
 
         onCoordinatesChange(lat, lng)
         if (markerRef.current) {
-          markerRef.current.setLngLat([lng, lat])
+          markerRef.current.setLatLng([lat, lng])
         }
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo({ center: [lng, lat], zoom: 16 })
+          mapInstanceRef.current.flyTo([lat, lng], 16)
         }
         fetchReverseGeocode(lat, lng)
       },
@@ -522,19 +581,19 @@ export function LocationMapPicker({
       </div>
 
       {/* Map Container (500px as requested) */}
-      <div className="relative h-[480px] sm:h-[500px] w-full overflow-hidden rounded-xl border border-[var(--border-color)] shadow-inner bg-[var(--bg-main)]">
+      <div className="relative h-[480px] sm:h-[500px] w-full overflow-hidden rounded-xl border border-[var(--border-color)] shadow-inner bg-[var(--bg-main)] z-0">
         <div ref={mapContainerRef} className="h-full w-full" />
 
         {/* Loading overlay when reverse geocoding */}
         {isResolvingAddress && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[10] inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-surface)] px-3 py-1 text-[11px] font-mono font-medium text-[#FA4616] border border-[#FA4616]/40 shadow-lg backdrop-blur-md animate-pulse">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1001] inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-surface)] px-3 py-1 text-[11px] font-mono font-medium text-[#FA4616] border border-[#FA4616]/40 shadow-lg backdrop-blur-md animate-pulse">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>Autocompletando dirección...</span>
           </div>
         )}
 
-        {/* Layer Switcher (Streets v2 | Satélite Híbrido | Nocturno) */}
-        <div className="absolute top-3 right-32 z-[10] flex items-center bg-[var(--bg-surface)]/90 rounded-lg p-0.5 backdrop-blur-md border border-[var(--border-color)] shadow-md text-[10px] font-mono">
+        {/* Layer Switcher (Calles | Satélite | Nocturno) */}
+        <div className="absolute top-3 right-32 z-[1001] flex items-center bg-[var(--bg-surface)]/90 rounded-lg p-0.5 backdrop-blur-md border border-[var(--border-color)] shadow-md text-[10px] font-mono">
           <button
             type="button"
             onClick={() => handleSwitchLayer('streets')}
@@ -576,7 +635,7 @@ export function LocationMapPicker({
             href={`https://www.google.com/maps?q=${currentLat},${currentLng}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-3 right-3 z-[10] inline-flex items-center gap-1 rounded-lg bg-[var(--bg-surface)]/90 hover:bg-[var(--bg-elevated)] px-2.5 py-1 backdrop-blur-md border border-[var(--border-color)] text-[10px] font-mono text-[var(--text-primary)] hover:text-[#FA4616] transition-colors shadow-md"
+            className="absolute top-3 right-3 z-[1001] inline-flex items-center gap-1 rounded-lg bg-[var(--bg-surface)]/90 hover:bg-[var(--bg-elevated)] px-2.5 py-1 backdrop-blur-md border border-[var(--border-color)] text-[10px] font-mono text-[var(--text-primary)] hover:text-[#FA4616] transition-colors shadow-md"
             title="Ver en Google Maps externo"
           >
             <span>Google Maps</span>
@@ -585,7 +644,7 @@ export function LocationMapPicker({
         )}
 
         {/* Active Coordinates Float Badge */}
-        <div className="pointer-events-none absolute bottom-3 left-3 z-[10] flex items-center gap-2 rounded-lg bg-[var(--bg-surface)]/90 px-2.5 py-1 backdrop-blur-md border border-[var(--border-color)] text-[10px] font-mono text-[var(--text-primary)] shadow-md">
+        <div className="pointer-events-none absolute bottom-3 left-3 z-[1001] flex items-center gap-2 rounded-lg bg-[var(--bg-surface)]/90 px-2.5 py-1 backdrop-blur-md border border-[var(--border-color)] text-[10px] font-mono text-[var(--text-primary)] shadow-md">
           <span className="h-2 w-2 rounded-full bg-[#FA4616] animate-pulse" />
           <span>
             Lat: <strong>{hasValidCoords ? currentLat : '--'}</strong>, Lng:{' '}
