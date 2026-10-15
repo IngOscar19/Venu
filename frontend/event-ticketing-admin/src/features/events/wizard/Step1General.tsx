@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -47,6 +48,7 @@ export function Step1General({
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors },
   } = useForm<Step1FormValues>({
     resolver: zodResolver(step1Schema),
@@ -63,10 +65,32 @@ export function Step1General({
       endDate: initialValues?.endDate || new Date().toISOString().split('T')[0],
       startTime: initialValues?.startTime || '19:00',
       endTime: initialValues?.endTime || '23:00',
-      latitude: initialValues?.latitude ?? undefined,
-      longitude: initialValues?.longitude ?? undefined,
+      latitude: initialValues?.latitude ?? 0,
+      longitude: initialValues?.longitude ?? 0,
     },
   })
+
+  // Ensure form inputs are updated when initialValues arrive asynchronously
+  useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      reset({
+        name: initialValues.name || '',
+        description: initialValues.description || '',
+        eventTypeId: initialValues.eventTypeId || '',
+        venueName: initialValues.venueName || '',
+        address: initialValues.address || '',
+        city: initialValues.city || '',
+        state: initialValues.state || '',
+        capacity: initialValues.capacity || 500,
+        startDate: initialValues.startDate || new Date().toISOString().split('T')[0],
+        endDate: initialValues.endDate || new Date().toISOString().split('T')[0],
+        startTime: initialValues.startTime || '19:00',
+        endTime: initialValues.endTime || '23:00',
+        latitude: initialValues.latitude ?? 0,
+        longitude: initialValues.longitude ?? 0,
+      })
+    }
+  }, [initialValues, reset])
 
   return (
     <form id="step1-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5">

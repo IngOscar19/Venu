@@ -20,9 +20,9 @@ export function EventWizardPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [createdEventId, setCreatedEventId] = useState<string | null>(id || null)
   const [generalData, setGeneralData] = useState<Step1FormValues | null>(null)
-  const [sections, setSections] = useState<WizardSectionItem[]>([
-    { name: 'General', capacity: 100, basePrice: 25 },
-  ])
+  const [sections, setSections] = useState<WizardSectionItem[]>(() =>
+    isEditMode ? [] : [{ name: 'General', capacity: 100, basePrice: 25 }]
+  )
   const [images, setImages] = useState<UploadedMediaItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -39,24 +39,30 @@ export function EventWizardPage() {
   useEffect(() => {
     if (existingEvent) {
       setCreatedEventId(existingEvent.id)
+      const rawEventTypeId =
+        existingEvent.eventTypeId ||
+        (existingEvent as any).eventType?.id ||
+        (existingEvent as any).type?.id ||
+        ''
+
       setGeneralData({
-        name: existingEvent.name,
+        name: existingEvent.name || '',
         description: existingEvent.description || '',
-        eventTypeId: existingEvent.eventTypeId || '',
+        eventTypeId: rawEventTypeId,
         startDate: existingEvent.startDate ? existingEvent.startDate.substring(0, 10) : '',
         endDate: existingEvent.endDate ? existingEvent.endDate.substring(0, 10) : '',
         startTime: existingEvent.startTime ? existingEvent.startTime.substring(0, 5) : '19:00',
         endTime: existingEvent.endTime ? existingEvent.endTime.substring(0, 5) : '22:00',
-        venueName: existingEvent.venueName,
-        address: existingEvent.address,
-        city: existingEvent.city,
-        state: existingEvent.state,
-        capacity: existingEvent.capacity,
+        venueName: existingEvent.venueName || '',
+        address: existingEvent.address || '',
+        city: existingEvent.city || '',
+        state: existingEvent.state || '',
+        capacity: existingEvent.capacity || 500,
         latitude: existingEvent.latitude ?? 0,
         longitude: existingEvent.longitude ?? 0,
       })
 
-      if (existingEvent.sections && existingEvent.sections.length > 0) {
+      if (existingEvent.sections) {
         setSections(
           existingEvent.sections.map((sec) => ({
             id: sec.id,
@@ -68,7 +74,7 @@ export function EventWizardPage() {
         )
       }
 
-      if (existingEvent.images && existingEvent.images.length > 0) {
+      if (existingEvent.images) {
         const uniqueImages: UploadedMediaItem[] = []
         const seenIds = new Set<string>()
         let foundPoster = false
@@ -286,7 +292,7 @@ export function EventWizardPage() {
     }
   }
 
-  if (isEditMode && isLoadingEvent) {
+  if (isEditMode && (isLoadingEvent || !existingEvent || !generalData)) {
     return (
       <div className="flex h-[50vh] w-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -380,6 +386,7 @@ export function EventWizardPage() {
       <div className="bg-[#161B22] rounded-2xl p-6 sm:p-8 border border-[#30363D] shadow-sm">
         {currentStep === 1 && (
           <Step1General
+            key={isEditMode ? `edit-${id}-${generalData?.name || ''}` : 'create'}
             initialValues={generalData || undefined}
             eventTypes={eventTypes}
             isLoading={isSubmitting}
