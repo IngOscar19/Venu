@@ -11,10 +11,12 @@ namespace EventTicketing.Api.Services.Implementations;
 public class OrganizerService : IOrganizerService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IWebHostEnvironment _environment;
 
-    public OrganizerService(ApplicationDbContext context)
+    public OrganizerService(ApplicationDbContext context, IWebHostEnvironment environment)
     {
         _context = context;
+        _environment = environment;
     }
 
     public async Task SubmitVerificationAsync(Guid organizerId, SubmitVerificationFormDto dto)
@@ -31,7 +33,8 @@ public class OrganizerService : IOrganizerService
         string? documentUrl = dto.CompanyDocumentUrl;
         if (dto.CompanyDocument != null && dto.CompanyDocument.Length > 0)
         {
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "kyc");
+            var webRoot = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
+            var uploadsPath = Path.Combine(webRoot, "uploads", "kyc");
             Directory.CreateDirectory(uploadsPath);
             var extension = Path.GetExtension(dto.CompanyDocument.FileName);
             var fileName = $"{organizerId}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";

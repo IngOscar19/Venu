@@ -171,6 +171,10 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
     app.UseSwaggerUI();
 }
 
+var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "kyc"));
+Directory.CreateDirectory(Path.Combine(webRoot, "uploads", "events"));
+
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseStaticFiles();

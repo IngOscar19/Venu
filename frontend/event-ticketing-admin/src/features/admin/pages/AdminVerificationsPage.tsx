@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, XCircle, ChevronDown, ChevronUp, ShieldCheck, Mail, Building, FileText, Landmark, ExternalLink } from 'lucide-react'
+import { CheckCircle, XCircle, ChevronDown, ChevronUp, ShieldCheck, Mail, Building, FileText, Landmark, ExternalLink, Eye, X } from 'lucide-react'
 import { adminService } from '../services/adminService'
 import type { OrganizerVerificationDetailDto, VerificationLevel } from '@/types/api'
+import { getFileUrl } from '@/lib/utils'
 
 const LEVELS: VerificationLevel[] = ['Basic', 'Pro', 'Enterprise']
 
@@ -16,6 +17,7 @@ const LEVEL_DESCRIPTIONS: Record<VerificationLevel, string> = {
 function VerificationRow({ item }: { item: OrganizerVerificationDetailDto }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const [level, setLevel] = useState<VerificationLevel>('Basic')
   const [notes, setNotes] = useState('')
   const [reason, setReason] = useState('')
@@ -104,14 +106,24 @@ function VerificationRow({ item }: { item: OrganizerVerificationDetailDto }) {
                 <span className="text-[var(--text-secondary)] block text-[10px] uppercase font-mono mb-1">
                   Documento Constitutivo
                 </span>
-                <a
-                  href={item.companyDocumentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[#FA4616] hover:underline inline-flex items-center gap-1 font-medium"
-                >
-                  Ver documento adjunto <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    className="text-[#FA4616] hover:underline inline-flex items-center gap-1 font-medium text-xs cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Previsualizar
+                  </button>
+                  <span className="text-[var(--text-secondary)] opacity-40">•</span>
+                  <a
+                    href={getFileUrl(item.companyDocumentUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline inline-flex items-center gap-1 font-medium text-xs"
+                  >
+                    Abrir en nueva pestaña <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -226,6 +238,52 @@ function VerificationRow({ item }: { item: OrganizerVerificationDetailDto }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de previsualización del documento */}
+      {showPreview && item.companyDocumentUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl h-[85vh] bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--border-color)] bg-[var(--bg-elevated)]">
+              <span className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[#FA4616]" /> {item.legalName || item.organizerName} — Documento adjunto
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={getFileUrl(item.companyDocumentUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg inline-flex items-center gap-1 transition"
+                >
+                  Abrir en nueva pestaña <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] rounded-lg transition cursor-pointer"
+                  title="Cerrar vista previa"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 w-full bg-[var(--bg-main)] p-2 overflow-auto flex items-center justify-center">
+              {item.companyDocumentUrl.match(/\.(jpg|jpeg|png|webp|svg)(\?.*)?$/i) ? (
+                <img
+                  src={getFileUrl(item.companyDocumentUrl)}
+                  alt="Documento adjunto"
+                  className="max-w-full max-h-full object-contain rounded-lg"
+                />
+              ) : (
+                <iframe
+                  src={getFileUrl(item.companyDocumentUrl)}
+                  title="Documento adjunto"
+                  className="w-full h-full rounded-lg border-0 bg-white"
+                />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
