@@ -16,9 +16,12 @@ import {
   Clock,
   Edit,
   AlertCircle,
+  Maximize2,
+  ZoomIn,
 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/axios'
 import { useAuthStore } from '@/store/authStore'
+import { EventImageLightbox, LightboxImageItem } from '@/features/events/components/EventImageLightbox'
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -28,6 +31,7 @@ export function EventDetailPage() {
   const { data: event, isLoading, error } = useEventDetail(id)
   const { publishMutation, cancelMutation } = useEventMutations()
   const [actionError, setActionError] = useState<string | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   if (isLoading) {
     return (
@@ -63,6 +67,26 @@ export function EventDetailPage() {
 
   const poster = event.images?.find((img) => img.type === 'POSTER') || event.images?.[0]
   const gallery = event.images?.filter((img) => img.id !== poster?.id && img.type !== 'POSTER') || []
+
+  // Construct ordered list of images (poster first, then gallery) for user-friendly lightbox
+  const lightboxImages: LightboxImageItem[] = []
+  if (poster) {
+    lightboxImages.push({
+      id: poster.id,
+      url: resolveImageUrl(poster.url),
+      type: 'POSTER',
+      alt: `${event.name} - Portada`,
+    })
+  }
+  gallery.forEach((img) => {
+    lightboxImages.push({
+      id: img.id,
+      url: resolveImageUrl(img.url),
+      type: img.type || 'GALLERY',
+      alt: `${event.name} - Galería`,
+    })
+  })
+
   const normalizedStatus = normalizeEventStatus(event.status)
   const hasSections = Boolean(event.sections && event.sections.length > 0)
 
@@ -172,20 +196,33 @@ export function EventDetailPage() {
       </div>
 
       {/* Main Banner / Poster */}
-      <div className="relative h-64 sm:h-80 rounded-3xl overflow-hidden shadow-lg border border-[#30363D] bg-[#0D1117]">
+      <div
+        onClick={() => poster && setLightboxIndex(0)}
+        className={`relative h-64 sm:h-80 rounded-3xl overflow-hidden shadow-lg border border-[#30363D] bg-[#0D1117] transition-all ${
+          poster ? 'cursor-pointer group hover:border-[#FA4616]/60' : ''
+        }`}
+        title={poster ? 'Clic para ampliar imagen en pantalla completa' : undefined}
+      >
         {poster ? (
-          <img
-            src={resolveImageUrl(poster.url)}
-            alt={event.name}
-            className="w-full h-full object-cover opacity-85"
-          />
+          <>
+            <img
+              src={resolveImageUrl(poster.url)}
+              alt={event.name}
+              className="w-full h-full object-cover opacity-85 group-hover:scale-105 group-hover:opacity-95 transition-all duration-300"
+            />
+            {/* Visual zoom hint pill */}
+            <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 text-white text-xs font-mono flex items-center gap-1.5 shadow-xl">
+              <ZoomIn className="w-3.5 h-3.5 text-[#FA4616]" />
+              <span>Ver en grande</span>
+            </div>
+          </>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-[#8B949E] bg-gradient-to-br from-[#161B22] to-[#21262D]">
             <Calendar className="w-12 h-12 mb-2 text-[#FA4616]" />
             <p className="text-xs font-mono">Sin imagen de portada cargada</p>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/30 to-transparent flex items-end p-6 sm:p-8">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0D1117] via-[#0D1117]/30 to-transparent flex items-end p-6 sm:p-8 pointer-events-none">
           <div className="text-white space-y-1">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#F5A894] bg-[#161B22]/90 border border-[#30363D] px-2.5 py-1 rounded-md">
               {event.venueName}
@@ -278,22 +315,42 @@ export function EventDetailPage() {
             </div>
           </div>
 
-          {/* Gallery */}
+          {/* Gallery with Click-to-Zoom Lightbox */}
           {gallery.length > 0 && (
             <div className="bg-[#161B22] p-6 rounded-2xl border border-[#30363D] shadow-sm space-y-4">
-              <h3 className="text-xs font-mono font-medium uppercase tracking-wider text-[#8B949E]">
-                Galería de Fotos
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-mono font-medium uppercase tracking-wider text-[#8B949E]">
+                  Galería de Fotos
+                </h3>
+                <span className="text-[11px] font-mono text-[#8B949E]">
+                  {gallery.length} foto{gallery.length > 1 ? 's' : ''} • Clic para ampliar
+                </span>
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {gallery.map((img) => (
-                  <div key={img.id} className="relative rounded-xl overflow-hidden h-32 border border-[#30363D] bg-[#0D1117]">
-                    <img
-                      src={resolveImageUrl(img.url)}
-                      alt="Gallery"
-                      className="w-full h-full object-cover hover:scale-105 transition-transform"
-                    />
-                  </div>
-                ))}
+                {gallery.map((img, idx) => {
+                  const targetIndex = poster ? idx + 1 : idx
+                  return (
+                    <button
+                      type="button"
+                      key={img.id}
+                      onClick={() => setLightboxIndex(targetIndex)}
+                      className="group relative rounded-xl overflow-hidden h-32 border border-[#30363D] hover:border-[#FA4616] bg-[#0D1117] transition-all text-left focus:outline-none focus:ring-2 focus:ring-[#FA4616]"
+                      title="Ver foto en tamaño completo"
+                    >
+                      <img
+                        src={resolveImageUrl(img.url)}
+                        alt="Gallery"
+                        className="w-full h-full object-cover group-hover:scale-110 group-hover:opacity-90 transition-all duration-300"
+                      />
+                      {/* Hover Overlay with Icon */}
+                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                        <span className="p-2.5 rounded-xl bg-[#161B22]/90 text-[#FA4616] border border-[#FA4616]/40 shadow-xl scale-75 group-hover:scale-100 transition-transform duration-200">
+                          <Maximize2 className="w-4 h-4" />
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -344,6 +401,16 @@ export function EventDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* High-Definition Interactive Lightbox Modal */}
+      <EventImageLightbox
+        images={lightboxImages}
+        currentIndex={lightboxIndex ?? 0}
+        isOpen={lightboxIndex !== null}
+        onClose={() => setLightboxIndex(null)}
+        onNavigate={(index) => setLightboxIndex(index)}
+        eventName={event.name}
+      />
     </div>
   )
 }
