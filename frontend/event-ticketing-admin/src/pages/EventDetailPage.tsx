@@ -115,7 +115,7 @@ export function EventDetailPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto w-full min-w-0 overflow-x-hidden pb-12">
       {/* Action Error Banner */}
       {actionError && (
         <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-800/80 flex items-start justify-between text-xs text-rose-200 font-medium shadow-lg animate-in fade-in duration-200">

@@ -65,12 +65,12 @@ export function HeroRevenueCard({
         </div>
 
         {/* Cifra gigante - Protagonista emocional */}
-        <div className="my-2">
-          <div className="flex items-baseline flex-wrap gap-2">
-            <span className="text-4xl sm:text-5xl lg:text-6xl font-black text-[#F0F6FC] font-headline tracking-tight drop-shadow-sm">
+        <div className="my-2 min-w-0">
+          <div className="flex items-baseline flex-wrap gap-2 min-w-0">
+            <span className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#F0F6FC] font-headline tracking-tight drop-shadow-sm break-words">
               ${formattedRevenue}
             </span>
-            <span className="text-lg sm:text-xl font-bold text-[#FF5A1F] font-mono">
+            <span className="text-base sm:text-xl font-bold text-[#FF5A1F] font-mono shrink-0">
               MXN
             </span>
           </div>

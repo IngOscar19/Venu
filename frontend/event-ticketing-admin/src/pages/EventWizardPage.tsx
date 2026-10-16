@@ -313,7 +313,7 @@ export function EventWizardPage() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 w-full min-w-0 overflow-x-hidden pb-12">
       <PageHeader
         title={isEditMode ? 'Editar Evento' : 'Crear Nuevo Evento'}
         description={

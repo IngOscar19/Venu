@@ -31,7 +31,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in-50 duration-300">
+    <div className="space-y-8 max-w-7xl mx-auto pb-16 w-full min-w-0 overflow-x-hidden animate-in fade-in-50 duration-300">
       {/* 1. Barra superior: Saludo personalizado + fecha legible + buscador */}
       <DashboardGreetingHeader
         searchQuery={searchQuery}

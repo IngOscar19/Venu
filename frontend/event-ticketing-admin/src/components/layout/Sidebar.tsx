@@ -39,15 +39,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden touch-none"
           onClick={onClose}
         />
       )}
 
       <aside
+        aria-hidden={!isOpen}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col bg-[#161B22] text-[#F0F6FC] border-r border-[#21262D] transition-transform duration-300 ease-in-out lg:static lg:h-full lg:translate-x-0',
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          'fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col bg-[#161B22] text-[#F0F6FC] border-r border-[#21262D] transition-all duration-300 ease-in-out lg:static lg:h-full lg:translate-x-0 lg:pointer-events-auto lg:visible',
+          isOpen
+            ? 'translate-x-0 pointer-events-auto visible shadow-2xl'
+            : '-translate-x-full pointer-events-none invisible lg:visible lg:pointer-events-auto'
         )}
       >
         {/* Brand header */}

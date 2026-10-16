@@ -68,7 +68,7 @@ export function EventListPage() {
   })
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden pb-12">
       <PageHeader
         title={isAdmin ? 'Todos los Eventos' : 'Mis Eventos'}
         description={
@@ -115,7 +115,7 @@ export function EventListPage() {
 
         <div className="flex items-center justify-between w-full md:w-auto gap-3">
           {/* Status filters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 touch-pan-x">
             {(['ALL', 'DRAFT', 'PUBLISHED', 'CANCELLED'] as const).map((status) => (
               <button
                 key={status}

@@ -66,11 +66,11 @@ export function BillboardDonutSummary({
         {/* Donut + Leyenda */}
         <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-6">
           {/* Anillo de progreso SVG */}
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center pointer-events-none select-none">
             <svg
               width={size}
               height={size}
-              className="rotate-[-90deg] transition-all duration-700 ease-out"
+              className="rotate-[-90deg] transition-all duration-700 ease-out pointer-events-none"
             >
               {/* Background ring adaptable al tema */}
               <circle
@@ -138,7 +138,7 @@ export function BillboardDonutSummary({
             </svg>
 
             {/* Centro del donut */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
               <span className="text-3xl font-black text-[#F0F6FC] font-headline leading-none">
                 {publishRatio}%
               </span>

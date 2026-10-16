@@ -92,7 +92,7 @@ export function UpcomingTimeline({ events = [] }: UpcomingTimelineProps) {
             </Link>
           </div>
         ) : (
-          <div className="relative mt-5 space-y-4 before:absolute before:left-6 before:top-3 before:bottom-3 before:w-0.5 before:bg-[#21262D]">
+          <div className="relative mt-5 space-y-4 before:absolute before:left-6 before:top-3 before:bottom-3 before:w-0.5 before:bg-[#21262D] before:pointer-events-none">
             {sortedEvents.map((event) => {
               const { day, month, time } = formatEventDate(event.startDate)
               return (
@@ -101,7 +101,7 @@ export function UpcomingTimeline({ events = [] }: UpcomingTimelineProps) {
                   className="relative flex items-start gap-3.5 pl-1 group"
                 >
                   {/* Badge de Fecha tipo calendario */}
-                  <div className="relative z-10 flex flex-col items-center justify-center w-11 h-12 rounded-xl bg-[#0D0F14] border border-[#30363D] shrink-0 text-center shadow-sm group-hover:border-[#FF5A1F] transition-colors">
+                  <div className="relative z-10 flex flex-col items-center justify-center w-11 h-12 rounded-xl bg-[#0D0F14] border border-[#30363D] shrink-0 text-center shadow-sm group-hover:border-[#FF5A1F] transition-colors pointer-events-none select-none">
                     <span className="text-[10px] font-mono font-bold text-[#FF5A1F] leading-none">
                       {month}
                     </span>

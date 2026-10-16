@@ -140,34 +140,34 @@ export function RecentEventsCardsList({
 
                   <span className="text-[#30363D]">|</span>
 
-                  <span className="flex items-center gap-1 text-[#F0F6FC] font-medium">
-                    <MapPin className="h-3.5 w-3.5 text-[#FF5A1F]" />
-                    <span className="truncate max-w-[220px]">{event.venueName || 'Recinto por definir'}</span>
+                  <span className="flex items-center gap-1 text-[#F0F6FC] font-medium min-w-0">
+                    <MapPin className="h-3.5 w-3.5 text-[#FF5A1F] shrink-0" />
+                    <span className="truncate max-w-[150px] sm:max-w-[220px]">{event.venueName || 'Recinto por definir'}</span>
                   </span>
 
                   <span className="text-[#30363D]">·</span>
 
-                  <span className="font-mono text-[#8B949E]">
+                  <span className="font-mono text-[#8B949E] shrink-0">
                     {formatDateHuman(event.startDate)}
                   </span>
                 </div>
 
                 {/* Título del evento con hover */}
-                <div>
+                <div className="min-w-0">
                   <Link
                     to={`/events/${event.id}`}
-                    className="inline-flex items-center gap-1.5 text-base sm:text-lg font-bold text-[#F0F6FC] group-hover:text-[#FF5A1F] transition-colors font-headline"
+                    className="inline-flex items-center gap-1.5 text-base sm:text-lg font-bold text-[#F0F6FC] group-hover:text-[#FF5A1F] transition-colors font-headline break-words"
                   >
-                    {event.name}
-                    <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF5A1F]" />
+                    <span>{event.name}</span>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[#FF5A1F]" />
                   </Link>
                 </div>
               </div>
 
               {/* Métricas visuales: Boletos con barra + Recaudación destacada */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-5 lg:gap-8 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#21262D]">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5 lg:gap-8 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#21262D] min-w-0">
                 {/* Barra de boletos vendidos */}
-                <div className="w-full sm:w-56 space-y-1.5">
+                <div className="w-full sm:w-56 space-y-1.5 min-w-0">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[#8B949E] flex items-center gap-1 font-mono">
                       <Ticket className="h-3.5 w-3.5 text-[#FF6B35]" />
