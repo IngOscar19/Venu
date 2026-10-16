@@ -1,5 +1,5 @@
-import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Calendar, PlusCircle, LogOut, ShieldCheck, Shield, Users, X } from 'lucide-react'
+import { NavLink, Link } from 'react-router-dom'
+import { LayoutDashboard, Calendar, PlusCircle, LogOut, ShieldCheck, Shield, Users, User, X } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/lib/utils'
 
@@ -28,6 +28,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           { to: '/verification', label: 'Verificación', icon: Shield },
         ]
       : []),
+    { to: '/account', label: 'Mi Cuenta', icon: User },
   ]
 
   const adminItems = [
@@ -146,12 +147,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* User Card */}
         <div className="shrink-0 p-4 border-t border-[#21262D] bg-[#0D1117]">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#21262D] text-[#F5A894] font-bold text-xs border border-[#30363D]">
+          <Link
+            to="/account"
+            onClick={onClose}
+            className="flex items-center gap-3 mb-3 p-1.5 -m-1.5 rounded-xl hover:bg-[#21262D] transition-colors group cursor-pointer"
+            title="Ver información de mi cuenta"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#21262D] text-[#F5A894] font-bold text-xs border border-[#30363D] group-hover:border-[#FA4616] transition-colors">
               {user?.firstName?.[0] || 'U'}{user?.lastName?.[0] || ''}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-[#F0F6FC]">
+              <p className="truncate text-xs font-semibold text-[#F0F6FC] group-hover:text-[#FA4616] transition-colors">
                 {user?.firstName} {user?.lastName}
               </p>
               <div className="flex items-center gap-1 mt-0.5">
@@ -161,7 +167,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </span>
               </div>
             </div>
-          </div>
+          </Link>
           <button
             onClick={logout}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#161B22] border border-[#30363D] px-3 py-2 text-xs font-medium text-[#8B949E] hover:bg-rose-950/30 hover:text-rose-400 hover:border-rose-900/40 transition-colors"

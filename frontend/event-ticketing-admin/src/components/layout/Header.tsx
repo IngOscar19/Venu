@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Menu, User as UserIcon, Search } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
@@ -42,18 +43,22 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         {/* Dark / Light Mode Toggle */}
         <ThemeToggle />
 
-        {/* User indicator */}
-        <div className="flex items-center gap-2 pl-3 border-l border-[#21262D]">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#21262D] border border-[#30363D] text-[#FA4616] text-xs font-bold">
+        {/* User indicator - Clickable link to /account */}
+        <Link
+          to="/account"
+          className="flex items-center gap-2 pl-3 border-l border-[#21262D] group cursor-pointer hover:opacity-90 transition-opacity"
+          title="Ver información de mi cuenta"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#21262D] border border-[#30363D] text-[#FA4616] text-xs font-bold group-hover:border-[#FA4616] group-hover:bg-[#FA4616]/10 transition-colors shadow-sm">
             <UserIcon className="h-4 w-4" />
           </div>
           <div className="hidden lg:block text-left">
-            <p className="text-xs font-semibold text-[#F0F6FC] leading-none">
+            <p className="text-xs font-semibold text-[#F0F6FC] leading-none group-hover:text-[#FA4616] transition-colors">
               {user?.firstName} {user?.lastName}
             </p>
             <p className="text-[10px] font-mono text-[#8B949E] mt-0.5">{user?.email}</p>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   )
