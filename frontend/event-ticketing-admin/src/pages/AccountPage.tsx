@@ -7,6 +7,7 @@ import { QUERY_KEYS } from '@/constants/queryKeys'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
+import type { VerificationLevel } from '@/types/api'
 import {
   User,
   Mail,
@@ -24,7 +25,98 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertCircle,
+  Users,
+  Award,
+  Layers,
+  Info,
+  ChevronRight,
+  CheckCircle,
 } from 'lucide-react'
+
+// Helper to reliably parse VerificationLevel from backend (string or numeric)
+function parseVerificationLevel(rawLevel: any, status?: string): VerificationLevel {
+  if (rawLevel === 3 || rawLevel === '3' || String(rawLevel).toLowerCase() === 'enterprise') return 'Enterprise'
+  if (rawLevel === 2 || rawLevel === '2' || String(rawLevel).toLowerCase() === 'pro') return 'Pro'
+  if (rawLevel === 1 || rawLevel === '1' || String(rawLevel).toLowerCase() === 'basic') return 'Basic'
+  if (rawLevel === 0 || rawLevel === '0' || String(rawLevel).toLowerCase() === 'unverified') return 'Unverified'
+  // If status is VERIFIED but level wasn't provided, default to Basic
+  if (status === 'VERIFIED') return 'Basic'
+  return 'Unverified'
+}
+
+interface LevelDetails {
+  key: VerificationLevel
+  tier: string
+  name: string
+  badgeText: string
+  badgeColor: string
+  cardBorder: string
+  maxCapacity: number
+  maxCapacityLabel: string
+  maxEvents: number
+  maxEventsLabel: string
+  description: string
+  perks: string[]
+}
+
+const VERIFICATION_LEVELS_INFO: Record<VerificationLevel, LevelDetails> = {
+  Unverified: {
+    key: 'Unverified',
+    tier: 'Nivel 0',
+    name: 'Sin Verificar',
+    badgeText: 'Nivel 0 · Sin Verificar',
+    badgeColor: 'text-[#8B949E] bg-[#21262D] border-[#30363D]',
+    cardBorder: 'border-[#30363D]',
+    maxCapacity: 0,
+    maxCapacityLabel: '0 personas (Solo borradores)',
+    maxEvents: 0,
+    maxEventsLabel: '0 eventos activos',
+    description: 'Cuenta registrada sin verificación de identidad. Puedes crear borradores pero no puedes publicar eventos ni vender entradas.',
+    perks: ['Creación ilimitada de borradores', 'Configuración de mapas y aforos'],
+  },
+  Basic: {
+    key: 'Basic',
+    tier: 'Tier 1',
+    name: 'Básico (Tier 1)',
+    badgeText: 'Nivel Básico · Hasta 500 personas',
+    badgeColor: 'text-blue-400 bg-blue-950/40 border-blue-800/60',
+    cardBorder: 'border-blue-800/50',
+    maxCapacity: 500,
+    maxCapacityLabel: 'Hasta 500 personas por evento',
+    maxEvents: 3,
+    maxEventsLabel: 'Hasta 3 eventos publicados simultáneamente',
+    description: 'Verificación estándar con identificación oficial, RFC/CURP y cuenta bancaria CLABE aprobada por el equipo de Venú.',
+    perks: ['Aforo de hasta 500 asistentes por evento', 'Hasta 3 eventos activos en cartelera', 'Cobros directos con dispersión segura'],
+  },
+  Pro: {
+    key: 'Pro',
+    tier: 'Tier 2',
+    name: 'Profesional (Tier 2)',
+    badgeText: 'Nivel Pro · Hasta 5,000 personas',
+    badgeColor: 'text-amber-400 bg-amber-950/40 border-amber-800/60',
+    cardBorder: 'border-amber-800/50',
+    maxCapacity: 5000,
+    maxCapacityLabel: 'Hasta 5,000 personas por evento',
+    maxEvents: 10,
+    maxEventsLabel: 'Hasta 10 eventos publicados simultáneamente',
+    description: 'Para organizadores o empresas consolidadas con historial verificado de 3 o más eventos exitosos y sin incidencias.',
+    perks: ['Aforo de hasta 5,000 asistentes por evento', 'Hasta 10 eventos activos en cartelera', 'Soporte prioritario y visibilidad destacada'],
+  },
+  Enterprise: {
+    key: 'Enterprise',
+    tier: 'Tier 3',
+    name: 'Enterprise (Tier 3)',
+    badgeText: 'Nivel Enterprise · Capacidad Ilimitada',
+    badgeColor: 'text-purple-400 bg-purple-950/40 border-purple-800/60',
+    cardBorder: 'border-purple-800/50',
+    maxCapacity: Infinity,
+    maxCapacityLabel: 'Capacidad Ilimitada (Sin tope)',
+    maxEvents: Infinity,
+    maxEventsLabel: 'Eventos ilimitados simultáneos',
+    description: 'Acuerdo empresarial y corporativo directo con Venú para grandes festivales, arenas y promotoras de alto volumen.',
+    perks: ['Aforo masivo sin tope de capacidad', 'Eventos ilimitados en cartelera', 'Ejecutivo de cuenta dedicado y SLA garantizado'],
+  },
+}
 
 export function AccountPage() {
   const navigate = useNavigate()
@@ -45,6 +137,12 @@ export function AccountPage() {
   const user = profile || localUser
   const isAdmin = user?.role === 'ADMIN'
   const organizer = profile?.organizer
+
+  const currentLevelKey = parseVerificationLevel(
+    organizer?.verificationLevel || (organizer as any)?.VerificationLevel,
+    organizer?.status || localUser?.organizerStatus
+  )
+  const currentLevel = VERIFICATION_LEVELS_INFO[currentLevelKey]
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text)
@@ -114,10 +212,10 @@ export function AccountPage() {
   const StatusIcon = verificationMeta.icon
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto w-full min-w-0 overflow-x-hidden pb-16 animate-in fade-in-50 duration-300">
+    <div className="space-y-8 max-w-5xl mx-auto w-full min-w-0 overflow-x-hidden pb-16 animate-in fade-in-50 duration-300">
       <PageHeader
         title="Mi Cuenta"
-        description="Consulta y administra los datos asociados a tu usuario y organización en Venú"
+        description="Consulta tus datos de perfil, nivel de verificación, aforo máximo y límites de tu cuenta"
       >
         <Button
           variant="outlined"
@@ -147,7 +245,7 @@ export function AccountPage() {
               </div>
 
               {/* Name & identifiers */}
-              <div className="min-w-0 space-y-1">
+              <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl sm:text-2xl font-bold text-[#F0F6FC] font-headline truncate">
                     {user?.firstName} {user?.lastName}
@@ -157,10 +255,10 @@ export function AccountPage() {
                   </span>
                   {!isAdmin && (
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold ${verificationMeta.bg} ${verificationMeta.color} border ${verificationMeta.border}`}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold ${currentLevel.badgeColor} border`}
                     >
-                      <StatusIcon className="h-3 w-3" />
-                      {verificationMeta.label}
+                      <Award className="h-3 w-3" />
+                      {currentLevel.tier} · {currentLevel.name}
                     </span>
                   )}
                 </div>
@@ -185,7 +283,7 @@ export function AccountPage() {
                 <Link to="/verification" className="w-full sm:w-auto">
                   <Button variant="default" size="sm" className="w-full sm:w-auto gap-2 font-bold shadow-md">
                     <ShieldCheck className="h-4 w-4" />
-                    <span>Estado de Verificación</span>
+                    <span>Gestionar Verificación</span>
                   </Button>
                 </Link>
               ) : (
@@ -196,6 +294,199 @@ export function AccountPage() {
                   </Button>
                 </Link>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECCIÓN DESTACADA: Nivel de Verificación y Límites de la Cuenta */}
+      {!isAdmin && (
+        <div className="rounded-3xl bg-[#161B22] border border-[#30363D] p-6 sm:p-7 shadow-lg space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#21262D]">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+                <h3 className="text-base font-bold text-[#F0F6FC] font-headline">
+                  Nivel de Verificación y Límites de Cuenta
+                </h3>
+              </div>
+              <p className="text-xs text-[#8B949E] mt-0.5">
+                Capacidad máxima permitida para organizar eventos y cuota de publicaciones activas simultáneas
+              </p>
+            </div>
+
+            <Link
+              to="/verification"
+              className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-[#FA4616] hover:underline shrink-0"
+            >
+              <span>Subir de Nivel</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {/* 3 Tarjetas de métricas de límites de la cuenta */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* 1. Nivel de Verificado */}
+            <div className="rounded-2xl bg-[#0D1117] border border-[#30363D] p-4 sm:p-5 flex flex-col justify-between space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B949E]">
+                  Nivel Asignado
+                </span>
+                <div className="h-8 w-8 rounded-xl bg-[#21262D] flex items-center justify-center text-[#FA4616]">
+                  <Award className="h-4 w-4" />
+                </div>
+              </div>
+              <div>
+                <p className="text-lg sm:text-xl font-black text-[#F0F6FC] font-headline">
+                  {currentLevel.name}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <StatusIcon className={`h-3 w-3 ${verificationMeta.color}`} />
+                  <span className={`text-xs font-mono font-bold ${verificationMeta.color}`}>
+                    {verificationMeta.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Capacidad Máxima de Aforo */}
+            <div className="rounded-2xl bg-[#0D1117] border border-[#30363D] p-4 sm:p-5 flex flex-col justify-between space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B949E]">
+                  Aforo Máximo por Evento
+                </span>
+                <div className="h-8 w-8 rounded-xl bg-[#21262D] flex items-center justify-center text-[#2ECC71]">
+                  <Users className="h-4 w-4" />
+                </div>
+              </div>
+              <div>
+                <p className="text-lg sm:text-xl font-black text-[#F0F6FC] font-headline">
+                  {currentLevel.maxCapacity === Infinity
+                    ? 'Sin límite'
+                    : currentLevel.maxCapacity === 0
+                    ? '0 personas'
+                    : `${currentLevel.maxCapacity.toLocaleString()} personas`}
+                </p>
+                <p className="text-xs text-[#8B949E] mt-0.5">
+                  {currentLevel.maxCapacity === 0
+                    ? 'Solo permite guardar borradores'
+                    : 'Tope máximo de boletos por evento'}
+                </p>
+              </div>
+            </div>
+
+            {/* 3. Límite de Eventos Activos Simultáneos */}
+            <div className="rounded-2xl bg-[#0D1117] border border-[#30363D] p-4 sm:p-5 flex flex-col justify-between space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#8B949E]">
+                  Límite de la Cuenta
+                </span>
+                <div className="h-8 w-8 rounded-xl bg-[#21262D] flex items-center justify-center text-[#8DA4EF]">
+                  <Layers className="h-4 w-4" />
+                </div>
+              </div>
+              <div>
+                <p className="text-lg sm:text-xl font-black text-[#F0F6FC] font-headline">
+                  {currentLevel.maxEvents === Infinity
+                    ? 'Ilimitados'
+                    : currentLevel.maxEvents === 0
+                    ? '0 en vivo'
+                    : `Hasta ${currentLevel.maxEvents} activos`}
+                </p>
+                <p className="text-xs text-[#8B949E] mt-0.5">
+                  {currentLevel.maxEvents === 0
+                    ? 'Requiere verificación para publicar'
+                    : 'Eventos simultáneos en cartelera'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Estado contextual / Alerta explicativa según nivel */}
+          {currentLevelKey === 'Unverified' && (
+            <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-200">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-amber-300">Tu cuenta aún no está verificada</p>
+                  <p className="text-amber-200/90 mt-0.5 leading-relaxed">
+                    Puedes diseñar eventos y secciones en modo borrador, pero para publicar y comenzar a vender boletos necesitas validar tu identidad y datos fiscales.
+                  </p>
+                </div>
+              </div>
+              <Link to="/verification" className="shrink-0 w-full sm:w-auto">
+                <Button variant="default" size="sm" className="w-full sm:w-auto font-bold bg-amber-500 hover:bg-amber-600 text-black">
+                  Iniciar Verificación
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {currentLevelKey === 'Basic' && (
+            <div className="p-4 rounded-2xl bg-[#0D1117] border border-[#21262D] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#8B949E]">
+              <div className="flex items-start gap-2.5">
+                <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-[#F0F6FC]">¿Necesitas más aforo o más eventos simultáneos?</p>
+                  <p className="mt-0.5 leading-relaxed">
+                    Al completar 3 o más eventos exitosos puedes solicitar tu ascenso al <strong>Nivel Pro (Tier 2)</strong> para organizar eventos de hasta 5,000 personas y 10 eventos simultáneos.
+                  </p>
+                </div>
+              </div>
+              <Link to="/verification" className="shrink-0 w-full sm:w-auto">
+                <Button variant="outlined" size="sm" className="w-full sm:w-auto text-xs">
+                  Ver Requisitos Pro
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Comparativa Visual de los 3 Niveles de Venú */}
+          <div className="space-y-3 pt-2">
+            <p className="text-xs font-mono font-medium uppercase tracking-wider text-[#8B949E]">
+              Escalafón de Niveles en Venú
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {(['Basic', 'Pro', 'Enterprise'] as const).map((levelKey) => {
+                const info = VERIFICATION_LEVELS_INFO[levelKey]
+                const isCurrent = currentLevelKey === levelKey
+
+                return (
+                  <div
+                    key={levelKey}
+                    className={`rounded-2xl p-4 transition-all relative ${
+                      isCurrent
+                        ? 'bg-[#1A1D24] border-2 border-[#FA4616] shadow-md shadow-[#FA4616]/10'
+                        : 'bg-[#0D1117] border border-[#21262D] opacity-80'
+                    }`}
+                  >
+                    {isCurrent && (
+                      <span className="absolute -top-2.5 right-3 bg-[#FA4616] text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow">
+                        Tu Nivel Actual
+                      </span>
+                    )}
+
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#21262D]">
+                      <span className="text-xs font-bold text-[#F0F6FC] font-headline">{info.name}</span>
+                      <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md ${info.badgeColor} border`}>
+                        {info.tier}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div>
+                        <span className="text-[10px] font-mono text-[#8B949E] uppercase block">Aforo Máximo</span>
+                        <span className="font-bold text-[#F0F6FC]">{info.maxCapacityLabel}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-mono text-[#8B949E] uppercase block">Eventos Simultáneos</span>
+                        <span className="font-bold text-[#F0F6FC]">{info.maxEventsLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -249,13 +540,13 @@ export function AccountPage() {
                 <p className="text-[10px] font-mono text-[#8B949E] uppercase">Estado de Cuenta</p>
                 <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Activa y Verificada
+                  Activa y Operativa
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Card: Perfil de Organizador (Visible si no es ADMIN o tiene datos de organizador) */}
+          {/* Card: Perfil de Organizador */}
           {!isAdmin && (
             <div className="rounded-2xl bg-[#161B22] border border-[#30363D] p-5 sm:p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#21262D]">
@@ -289,6 +580,21 @@ export function AccountPage() {
                         {verificationMeta.label}
                       </span>
                     </div>
+                  </div>
+
+                  <div className="space-y-1 p-3 rounded-xl bg-[#0D1117] border border-[#21262D]">
+                    <p className="text-[10px] font-mono text-[#8B949E] uppercase">Nivel de Verificado</p>
+                    <p className="font-bold text-[#F0F6FC] font-headline flex items-center gap-1.5">
+                      <Award className="h-3.5 w-3.5 text-[#FA4616]" />
+                      {currentLevel.name}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 p-3 rounded-xl bg-[#0D1117] border border-[#21262D]">
+                    <p className="text-[10px] font-mono text-[#8B949E] uppercase">Aforo Máximo Permitido</p>
+                    <p className="font-bold text-[#2ECC71] font-mono">
+                      {currentLevel.maxCapacityLabel}
+                    </p>
                   </div>
                 </div>
 
