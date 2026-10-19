@@ -65,6 +65,52 @@ public class EventsController : ControllerBase
         return Ok(await _eventService.GetByIdAsync(id));
     }
 
+    [HttpGet("resolve-maps-url")]
+    [AllowAnonymous]
+    public async Task<ActionResult<object>> ResolveMapsUrl([FromQuery] string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return BadRequest(new { message = "URL is required" });
+        }
+
+        try
+        {
+            using var handler = new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            };
+            using var client = new HttpClient(handler);
+            client.Timeout = TimeSpan.FromSeconds(8);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+            var currentUrl = url.Trim();
+            for (int i = 0; i < 6; i++)
+            {
+                var response = await client.GetAsync(currentUrl);
+                if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400 && response.Headers.Location != null)
+                {
+                    var redirectUri = response.Headers.Location;
+                    if (!redirectUri.IsAbsoluteUri)
+                    {
+                        redirectUri = new Uri(new Uri(currentUrl), redirectUri);
+                    }
+                    currentUrl = redirectUri.ToString();
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return Ok(new { resolvedUrl = currentUrl });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error resolving map URL", error = ex.Message });
+        }
+    }
+
     [HttpPost]
     [Authorize]
     [EnableRateLimiting("events")]

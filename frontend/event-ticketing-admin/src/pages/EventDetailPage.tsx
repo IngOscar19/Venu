@@ -272,17 +272,25 @@ export function EventDetailPage() {
               </p>
             </div>
           </div>
-          {typeof event.latitude === 'number' && typeof event.longitude === 'number' && event.latitude !== 0 && (
-            <a
-              href={`https://www.google.com/maps?q=${event.latitude},${event.longitude}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[10px] font-mono font-medium text-[#FA4616] hover:underline shrink-0"
-              title="Abrir ubicación en Google Maps"
-            >
-              Maps ↗
-            </a>
-          )}
+          {(() => {
+            const hasCoords = typeof event.latitude === 'number' && typeof event.longitude === 'number' && event.latitude !== 0
+            const queryAddress = [event.venueName, event.address, event.city, event.state].filter(Boolean).join(', ')
+            const mapsUrl = hasCoords
+              ? `https://www.google.com/maps?q=${event.latitude},${event.longitude}`
+              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryAddress)}`
+
+            return (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-mono font-medium text-[#FA4616] hover:underline shrink-0 flex items-center gap-1"
+                title="Abrir ubicación en Google Maps"
+              >
+                Maps ↗
+              </a>
+            )
+          })()}
         </div>
 
         <div className="bg-[#161B22] p-5 rounded-2xl border border-[#30363D] shadow-sm flex items-center gap-3.5">

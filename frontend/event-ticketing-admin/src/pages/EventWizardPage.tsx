@@ -124,6 +124,18 @@ export function EventWizardPage() {
       if (!createdEventId) {
         const res = await eventService.create(payload)
         setCreatedEventId(res.id)
+        if (sections.length > 0 && !sections[0].id) {
+          try {
+            const secRes = await eventService.addSection(res.id, {
+              name: sections[0].name,
+              capacity: Math.min(sections[0].capacity, Number(values.capacity)),
+              basePrice: sections[0].basePrice,
+            })
+            setSections([{ ...sections[0], capacity: Math.min(sections[0].capacity, Number(values.capacity)), id: secRes.id }])
+          } catch {
+            // Non-fatal, section can still be saved in Step 2
+          }
+        }
       } else {
         await eventService.update(createdEventId, payload)
         await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
@@ -179,6 +191,50 @@ export function EventWizardPage() {
       const msg = err.response?.data?.message || err.message || 'Error al guardar la sección.'
       setError(msg)
       throw new Error(msg)
+    }
+  }
+
+  const handleUpdateSection = async (idx: number, updatedSection: WizardSectionItem) => {
+    setError(null)
+    const existing = sections[idx]
+    if (!existing) return
+
+    if (createdEventId && existing.id) {
+      try {
+        const res = await eventService.updateSection(createdEventId, existing.id, {
+          name: updatedSection.name,
+          capacity: updatedSection.capacity,
+          basePrice: updatedSection.basePrice,
+        })
+        setSections((prev) =>
+          prev.map((s, i) => (i === idx ? { ...updatedSection, id: res.id } : s))
+        )
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      } catch (err: any) {
+        const msg = err.response?.data?.message || err.message || 'Error al actualizar la sección en el servidor.'
+        setError(msg)
+        throw new Error(msg)
+      }
+    } else if (createdEventId) {
+      try {
+        const res = await eventService.addSection(createdEventId, {
+          name: updatedSection.name,
+          capacity: updatedSection.capacity,
+          basePrice: updatedSection.basePrice,
+        })
+        setSections((prev) =>
+          prev.map((s, i) => (i === idx ? { ...updatedSection, id: res.id } : s))
+        )
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(createdEventId) })
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      } catch (err: any) {
+        const msg = err.response?.data?.message || err.message || 'Error al guardar la sección en el servidor.'
+        setError(msg)
+        throw new Error(msg)
+      }
+    } else {
+      setSections((prev) => prev.map((s, i) => (i === idx ? updatedSection : s)))
     }
   }
 
@@ -400,6 +456,7 @@ export function EventWizardPage() {
             sections={sections}
             maxCapacity={generalData?.capacity || 500}
             onAddSection={handleAddSection}
+            onUpdateSection={handleUpdateSection}
             onRemoveSection={handleRemoveSection}
             onNext={() => setCurrentStep(3)}
             onBack={() => setCurrentStep(1)}

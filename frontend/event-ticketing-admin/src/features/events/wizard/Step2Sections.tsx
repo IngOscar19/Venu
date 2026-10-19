@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { ArrowLeft, ArrowRight, Plus, Trash2, Loader2, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, Trash2, Pencil, Loader2, Check, X } from 'lucide-react'
 
 export interface WizardSectionItem {
   id?: string
@@ -15,6 +15,7 @@ interface Step2SectionsProps {
   sections: WizardSectionItem[]
   maxCapacity: number
   onAddSection: (section: WizardSectionItem) => Promise<void> | void
+  onUpdateSection?: (index: number, section: WizardSectionItem) => Promise<void> | void
   onRemoveSection: (index: number) => Promise<void> | void
   onNext: () => void
   onBack: () => void
@@ -25,6 +26,7 @@ export function Step2Sections({
   sections,
   maxCapacity,
   onAddSection,
+  onUpdateSection,
   onRemoveSection,
   onNext,
   onBack,
@@ -34,12 +36,31 @@ export function Step2Sections({
   const [capacity, setCapacity] = useState('')
   const [price, setPrice] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isAdding, setIsAdding] = useState(false)
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false)
   const [deletingIdx, setDeletingIdx] = useState<number | null>(null)
+  const [editingIdx, setEditingIdx] = useState<number | null>(null)
 
   const currentCapacity = sections.reduce((sum, s) => sum + (s.capacity || 0), 0)
 
-  const handleAdd = async () => {
+  const handleStartEdit = (idx: number) => {
+    const sec = sections[idx]
+    if (!sec) return
+    setError(null)
+    setEditingIdx(idx)
+    setName(sec.name)
+    setCapacity(sec.capacity?.toString() || '')
+    setPrice(sec.basePrice?.toString() || '')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingIdx(null)
+    setName('')
+    setCapacity('')
+    setPrice('')
+    setError(null)
+  }
+
+  const handleSubmitSection = async () => {
     setError(null)
     if (!name.trim() || !capacity || !price) {
       setError('Todos los campos son obligatorios.')
@@ -54,31 +75,65 @@ export function Step2Sections({
       return
     }
 
-    if (currentCapacity + capNum > maxCapacity) {
-      setError(`La capacidad acumulada (${currentCapacity + capNum}) supera el aforo total del evento (${maxCapacity}).`)
-      return
-    }
+    if (editingIdx !== null) {
+      // Editing existing section
+      const oldCap = sections[editingIdx]?.capacity || 0
+      const newTotal = currentCapacity - oldCap + capNum
+      if (newTotal > maxCapacity) {
+        setError(`La capacidad total (${newTotal}) supera el aforo máximo del evento (${maxCapacity}).`)
+        return
+      }
 
-    setIsAdding(true)
-    try {
-      await onAddSection({
-        name: name.trim(),
-        capacity: capNum,
-        basePrice: priceNum,
-      })
+      setIsSubmittingForm(true)
+      try {
+        const targetSection = sections[editingIdx]
+        const updatedItem: WizardSectionItem = {
+          ...targetSection,
+          name: name.trim(),
+          capacity: capNum,
+          basePrice: priceNum,
+        }
 
-      setName('')
-      setCapacity('')
-      setPrice('')
-    } catch (err: any) {
-      setError(err?.message || 'Error al agregar la sección.')
-    } finally {
-      setIsAdding(false)
+        if (onUpdateSection) {
+          await onUpdateSection(editingIdx, updatedItem)
+        }
+        handleCancelEdit()
+      } catch (err: any) {
+        setError(err?.message || 'Error al actualizar la sección.')
+      } finally {
+        setIsSubmittingForm(false)
+      }
+    } else {
+      // Adding new section
+      if (currentCapacity + capNum > maxCapacity) {
+        setError(`La capacidad acumulada (${currentCapacity + capNum}) supera el aforo total del evento (${maxCapacity}).`)
+        return
+      }
+
+      setIsSubmittingForm(true)
+      try {
+        await onAddSection({
+          name: name.trim(),
+          capacity: capNum,
+          basePrice: priceNum,
+        })
+
+        setName('')
+        setCapacity('')
+        setPrice('')
+      } catch (err: any) {
+        setError(err?.message || 'Error al agregar la sección.')
+      } finally {
+        setIsSubmittingForm(false)
+      }
     }
   }
 
   const handleRemove = async (idx: number) => {
     setError(null)
+    if (editingIdx === idx) {
+      handleCancelEdit()
+    }
     setDeletingIdx(idx)
     try {
       await onRemoveSection(idx)
@@ -117,51 +172,108 @@ export function Step2Sections({
             Aún no has agregado ninguna sección. Agrega al menos una sección para continuar.
           </div>
         ) : (
-          sections.map((s, idx) => (
-            <div key={s.id || idx} className="p-4 flex items-center justify-between hover:bg-[#161B22] transition-colors">
-              <div>
-                <h4 className="font-semibold text-xs text-[#F0F6FC]">{s.name}</h4>
-                <p className="text-[11px] font-mono text-[#8B949E]">{(s.capacity ?? 0).toLocaleString()} boletos disponibles</p>
+          sections.map((s, idx) => {
+            const isBeingEdited = editingIdx === idx
+            return (
+              <div
+                key={s.id || idx}
+                className={`p-4 flex items-center justify-between transition-colors ${
+                  isBeingEdited ? 'bg-[#FA4616]/10 border-l-4 border-l-[#FA4616]' : 'hover:bg-[#161B22]'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-xs text-[#F0F6FC]">{s.name}</h4>
+                    {isBeingEdited && (
+                      <span className="text-[9px] font-mono font-bold bg-[#FA4616]/20 text-[#FA4616] px-1.5 py-0.5 rounded">
+                        Editando
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] font-mono text-[#8B949E]">
+                    {(s.capacity ?? 0).toLocaleString()} boletos disponibles
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-mono font-bold text-[#F5A894]">${(s.basePrice ?? 0).toFixed(2)}</span>
+                  
+                  {/* Edit button */}
+                  <button
+                    type="button"
+                    onClick={() => handleStartEdit(idx)}
+                    disabled={isSubmittingForm || deletingIdx !== null}
+                    className="p-1.5 text-[#8B949E] hover:text-[#FA4616] hover:bg-[#21262D] disabled:opacity-50 rounded-lg transition-colors"
+                    title="Editar sección"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    disabled={deletingIdx === idx || isSubmittingForm}
+                    onClick={() => handleRemove(idx)}
+                    className="p-1.5 text-[#8B949E] hover:text-rose-400 hover:bg-[#21262D] disabled:opacity-50 rounded-lg transition-colors"
+                    title="Eliminar sección"
+                  >
+                    {deletingIdx === idx ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-mono font-bold text-[#F5A894]">${(s.basePrice ?? 0).toFixed(2)}</span>
-                <button
-                  type="button"
-                  disabled={deletingIdx === idx}
-                  onClick={() => handleRemove(idx)}
-                  className="p-1.5 text-[#8B949E] hover:text-rose-400 disabled:opacity-50 rounded-lg transition-colors"
-                  title="Eliminar sección"
-                >
-                  {deletingIdx === idx ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
-      {/* New Section Box */}
-      <div className="p-4 rounded-xl bg-[#0D1117] border border-[#30363D] space-y-3">
-        <h3 className="text-[11px] font-mono font-medium uppercase tracking-wider text-[#8B949E]">
-          Nueva Sección
-        </h3>
+      {/* Section Form Box (Handles both Create & Edit) */}
+      <div className={`p-4 rounded-xl border space-y-3 transition-colors ${
+        editingIdx !== null
+          ? 'bg-[#161B22] border-[#FA4616]/50 shadow-md shadow-[#FA4616]/5'
+          : 'bg-[#0D1117] border-[#30363D]'
+      }`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-[11px] font-mono font-medium uppercase tracking-wider text-[#8B949E] flex items-center gap-1.5">
+            {editingIdx !== null ? (
+              <>
+                <Pencil className="w-3.5 h-3.5 text-[#FA4616]" />
+                <span className="text-[#FA4616] font-bold">Editar Sección: {sections[editingIdx]?.name}</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5 text-[#8B949E]" />
+                <span>Nueva Sección</span>
+              </>
+            )}
+          </h3>
+          {editingIdx !== null && (
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="text-[11px] font-mono text-[#8B949E] hover:text-[#F0F6FC] inline-flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              Cancelar
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
-            placeholder="Nombre (ej. VIP, General)"
+            placeholder="Nombre (ej. General, VIP)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            disabled={isAdding}
+            disabled={isSubmittingForm}
           />
           <Input
             placeholder="Capacidad"
             type="number"
             value={capacity}
             onChange={(e) => setCapacity(e.target.value)}
-            disabled={isAdding}
+            disabled={isSubmittingForm}
           />
           <Input
             placeholder="Precio ($)"
@@ -169,20 +281,49 @@ export function Step2Sections({
             step="0.01"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            disabled={isAdding}
+            disabled={isSubmittingForm}
           />
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleAdd}
-          isLoading={isAdding}
-          className="gap-1.5 font-semibold text-xs"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Agregar Sección
-        </Button>
+
+        <div className="flex items-center gap-2">
+          {editingIdx !== null ? (
+            <>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={handleSubmitSection}
+                isLoading={isSubmittingForm}
+                className="gap-1.5 font-bold text-xs"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Guardar Cambios
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleCancelEdit}
+                disabled={isSubmittingForm}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleSubmitSection}
+              isLoading={isSubmittingForm}
+              className="gap-1.5 font-semibold text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Agregar Sección
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-[#21262D]">

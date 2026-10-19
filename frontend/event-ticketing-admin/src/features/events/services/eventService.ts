@@ -74,6 +74,18 @@ export const eventService = {
     await apiClient.delete(`/api/events/${eventId}/sections/${sectionId}`)
   },
 
+  updateSection: async (eventId: string, sectionId: string, data: CreateEventSectionDto) => {
+    const res = await apiClient.put<EventSectionDto>(`/api/events/${eventId}/sections/${sectionId}`, data)
+    return res.data
+  },
+
+  resolveMapsUrl: async (url: string) => {
+    const res = await apiClient.get<{ resolvedUrl: string }>('/api/events/resolve-maps-url', {
+      params: { url },
+    })
+    return res.data.resolvedUrl
+  },
+
   getEventTypes: async () => {
     const res = await apiClient.get<EventTypeDto[]>('/api/event-types')
     return res.data

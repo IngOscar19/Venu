@@ -2,6 +2,35 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapPin, Search, Compass, ExternalLink, Sparkles, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { eventService } from '@/features/events/services/eventService'
+
+// Parse Degrees Minutes Seconds (DMS) format e.g. 19°25'33.5"N 99°11'30.6"W
+function parseDMSCoordinates(input: string): { lat: number; lng: number } | null {
+  const dmsRegex = /(\d+)[°\s]+(\d+)['\s]+([0-9.]+)["]?\s*([NSEWnsew])/g
+  const matches = [...input.matchAll(dmsRegex)]
+  if (matches.length >= 2) {
+    const parseCoord = (match: RegExpMatchArray) => {
+      const deg = parseFloat(match[1])
+      const min = parseFloat(match[2])
+      const sec = parseFloat(match[3])
+      const dir = match[4].toUpperCase()
+      let val = deg + min / 60 + sec / 3600
+      if (dir === 'S' || dir === 'W') val = -val
+      return val
+    }
+    const val1 = parseCoord(matches[0])
+    const dir1 = matches[0][4].toUpperCase()
+    const val2 = parseCoord(matches[1])
+    const dir2 = matches[1][4].toUpperCase()
+
+    if ((dir1 === 'N' || dir1 === 'S') && (dir2 === 'E' || dir2 === 'W')) {
+      return { lat: val1, lng: val2 }
+    } else if ((dir2 === 'N' || dir2 === 'S') && (dir1 === 'E' || dir1 === 'W')) {
+      return { lat: val2, lng: val1 }
+    }
+  }
+  return null
+}
 
 export interface ResolvedAddress {
   address: string
@@ -14,8 +43,8 @@ export interface ResolvedAddress {
 }
 
 interface LocationMapPickerProps {
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
   onCoordinatesChange: (lat: number, lng: number) => void
   onAddressResolved?: (resolved: ResolvedAddress) => void
   addressQuery?: string
@@ -251,6 +280,7 @@ export function LocationMapPicker({
   const [isSearchingAddress, setIsSearchingAddress] = useState(false)
   const [isLocatingCurrent, setIsLocatingCurrent] = useState(false)
   const [isResolvingAddress, setIsResolvingAddress] = useState(false)
+  const [isParsingLink, setIsParsingLink] = useState(false)
 
   // Default coordinate: CDMX if empty
   const defaultLat = 19.4326
@@ -521,80 +551,186 @@ export function LocationMapPicker({
     }
   }, [latitude, longitude, hasValidCoords])
 
-  // Smart Parser for Google Maps links and pasted coordinates
-  const handleParseAndApply = (input: string) => {
-    const raw = input.trim()
+  // Smart Parser for Google Maps links, shortened URLs, and pasted coordinates
+  const handleParseAndApply = async (input: string) => {
+    let raw = input.trim()
     if (!raw) return
 
-    let lat: number | null = null
-    let lng: number | null = null
+    setIsParsingLink(true)
+    setPasteFeedback({
+      type: 'info',
+      message: 'Procesando ubicación o enlace de Google Maps...',
+    })
 
-    // Pattern 1: URL with @lat,lng,zoom
-    const urlAtMatch = raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-    if (urlAtMatch) {
-      lat = parseFloat(urlAtMatch[1])
-      lng = parseFloat(urlAtMatch[2])
-    }
+    try {
+      let lat: number | null = null
+      let lng: number | null = null
+      let placeNameCandidate: string | null = null
 
-    // Pattern 2: URL with ?q=lat,lng or &q=lat,lng or ll=lat,lng
-    if (lat === null) {
-      const urlQMatch = raw.match(/[?&](?:q|ll|query)=(-?\d+\.\d+),(-?\d+\.\d+)/)
-      if (urlQMatch) {
-        lat = parseFloat(urlQMatch[1])
-        lng = parseFloat(urlQMatch[2])
-      }
-    }
-
-    // Pattern 3: Standard comma separated "20.912247, -100.728071"
-    if (lat === null) {
-      const commaMatch = raw.match(/^(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)$/)
-      if (commaMatch) {
-        lat = parseFloat(commaMatch[1])
-        lng = parseFloat(commaMatch[2])
-      }
-    }
-
-    // Pattern 4: Accidentally joined like "20.912247-100.728071"
-    if (lat === null) {
-      const joinedMatch = raw.match(/^(\d+\.\d+)(-\d+(?:\.\d+)?)$/)
-      if (joinedMatch) {
-        lat = parseFloat(joinedMatch[1])
-        lng = parseFloat(joinedMatch[2])
-        if (!joinedMatch[2].includes('.') && joinedMatch[2].length > 4) {
-          const minusPart = joinedMatch[2]
-          lng = parseFloat(minusPart.substring(0, 4) + '.' + minusPart.substring(4))
+      // Check if it's a short URL (maps.app.goo.gl or goo.gl/maps)
+      if (raw.includes('maps.app.goo.gl') || raw.includes('goo.gl/maps')) {
+        try {
+          const resolved = await eventService.resolveMapsUrl(raw)
+          if (resolved) {
+            raw = resolved
+          }
+        } catch {
+          // If backend resolution fails, continue with original string
         }
       }
-    }
 
-    if (
-      lat !== null &&
-      lng !== null &&
-      !isNaN(lat) &&
-      !isNaN(lng) &&
-      lat >= -90 &&
-      lat <= 90 &&
-      lng >= -180 &&
-      lng <= 180
-    ) {
-      const fixedLat = Number(lat.toFixed(6))
-      const fixedLng = Number(lng.toFixed(6))
+      // Pattern 1: URL with @lat,lng,zoom e.g. @19.425959,-99.191834
+      const urlAtMatch = raw.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+      if (urlAtMatch) {
+        lat = parseFloat(urlAtMatch[1])
+        lng = parseFloat(urlAtMatch[2])
+      }
 
-      onCoordinatesChange(fixedLat, fixedLng)
-      if (markerRef.current) {
-        markerRef.current.setLatLng([fixedLat, fixedLng])
+      // Pattern 2: Google Maps data parameter !3d{lat}!4d{lng} (common in place URLs)
+      if (lat === null) {
+        const data3d4dMatch = raw.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+        if (data3d4dMatch) {
+          lat = parseFloat(data3d4dMatch[1])
+          lng = parseFloat(data3d4dMatch[2])
+        }
       }
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([fixedLat, fixedLng], 16)
+
+      // Pattern 3: Alternative data parameter !1d{lng}!2d{lat}
+      if (lat === null) {
+        const data2d1dMatch = raw.match(/!2d(-?\d+\.\d+)!1d(-?\d+\.\d+)/)
+        if (data2d1dMatch) {
+          lng = parseFloat(data2d1dMatch[1])
+          lat = parseFloat(data2d1dMatch[2])
+        }
       }
-      setPasteInput('')
-      fetchReverseGeocode(fixedLat, fixedLng)
-    } else {
+
+      // Pattern 4: URL with ?q=lat,lng or &ll=lat,lng
+      if (lat === null) {
+        const urlQMatch = raw.match(/[?&](?:q|ll|query|saddr|daddr)=(-?\d+\.\d+),(-?\d+\.\d+)/)
+        if (urlQMatch) {
+          lat = parseFloat(urlQMatch[1])
+          lng = parseFloat(urlQMatch[2])
+        }
+      }
+
+      // Extract place name candidate from /place/Name+Address/...
+      const placeMatch = raw.match(/\/maps\/place\/([^/@?#]+)/)
+      if (placeMatch) {
+        try {
+          const decoded = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '))
+          placeNameCandidate = decoded.split(',')[0].trim()
+        } catch {
+          // ignore decode error
+        }
+      }
+
+      // Pattern 5: Standard comma separated "20.912247, -100.728071"
+      if (lat === null) {
+        const commaMatch = raw.match(/^(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)$/)
+        if (commaMatch) {
+          lat = parseFloat(commaMatch[1])
+          lng = parseFloat(commaMatch[2])
+        }
+      }
+
+      // Pattern 6: DMS coordinates e.g. 19°25'33.5"N 99°11'30.6"W
+      if (lat === null) {
+        const dmsResult = parseDMSCoordinates(raw)
+        if (dmsResult) {
+          lat = dmsResult.lat
+          lng = dmsResult.lng
+        }
+      }
+
+      // Pattern 7: Accidentally joined like "20.912247-100.728071"
+      if (lat === null) {
+        const joinedMatch = raw.match(/^(\d+\.\d+)(-\d+(?:\.\d+)?)$/)
+        if (joinedMatch) {
+          lat = parseFloat(joinedMatch[1])
+          lng = parseFloat(joinedMatch[2])
+          if (!joinedMatch[2].includes('.') && joinedMatch[2].length > 4) {
+            const minusPart = joinedMatch[2]
+            lng = parseFloat(minusPart.substring(0, 4) + '.' + minusPart.substring(4))
+          }
+        }
+      }
+
+      // Pattern 8: If still no coordinates, but there's a place name candidate in URL, forward geocode it!
+      if (lat === null && placeNameCandidate) {
+        const geocoded = await forwardGeocodeProgressive(placeNameCandidate, '', '', '')
+        if (geocoded) {
+          lat = geocoded.lat
+          lng = geocoded.lng
+        }
+      }
+
+      // Pattern 9: If URL has q=Search+Text, forward geocode it!
+      if (lat === null && (raw.includes('maps.google') || raw.includes('google.com/maps'))) {
+        const searchQMatch = raw.match(/[?&]q=([^&]+)/)
+        if (searchQMatch) {
+          const queryText = decodeURIComponent(searchQMatch[1].replace(/\+/g, ' ')).trim()
+          if (queryText) {
+            const geocoded = await forwardGeocodeProgressive(queryText, '', '', '')
+            if (geocoded) {
+              lat = geocoded.lat
+              lng = geocoded.lng
+              if (!placeNameCandidate) placeNameCandidate = queryText.split(',')[0].trim()
+            }
+          }
+        }
+      }
+
+      if (
+        lat !== null &&
+        lng !== null &&
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180
+      ) {
+        const fixedLat = Number(lat.toFixed(6))
+        const fixedLng = Number(lng.toFixed(6))
+
+        onCoordinatesChange(fixedLat, fixedLng)
+        if (markerRef.current) {
+          markerRef.current.setLatLng([fixedLat, fixedLng])
+        }
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo([fixedLat, fixedLng], 16)
+        }
+        setPasteInput('')
+
+        // If a venue name was extracted from the Google Maps link, pass it
+        if (placeNameCandidate && onAddressResolvedRef.current) {
+          onAddressResolvedRef.current({
+            venueName: placeNameCandidate,
+            address: '',
+            city: '',
+            state: '',
+          })
+        }
+
+        await fetchReverseGeocode(fixedLat, fixedLng)
+        setPasteFeedback({
+          type: 'success',
+          message: `📍 Ubicación vinculada con éxito (${fixedLat}, ${fixedLng})`,
+        })
+      } else {
+        setPasteFeedback({
+          type: 'error',
+          message:
+            'No se pudieron extraer las coordenadas del enlace. Prueba copiando el enlace completo del mapa o las coordenadas (ej. 19.4326, -99.1332).',
+        })
+      }
+    } catch {
       setPasteFeedback({
         type: 'error',
-        message:
-          'No pudimos reconocer las coordenadas en ese texto. Intenta pegar "20.912247, -100.728071" o el enlace de Google Maps.',
+        message: 'Ocurrió un error al procesar el enlace. Intenta de nuevo o ubica el pin en el mapa.',
       })
+    } finally {
+      setIsParsingLink(false)
     }
   }
 
@@ -707,10 +843,11 @@ export function LocationMapPicker({
           <button
             type="button"
             onClick={() => handleParseAndApply(pasteInput)}
-            disabled={!pasteInput.trim()}
-            className="h-9 px-3 rounded-xl bg-[#FA4616] hover:bg-[#FF6B35] disabled:opacity-40 text-white text-xs font-bold font-mono transition-colors shrink-0"
+            disabled={!pasteInput.trim() || isParsingLink}
+            className="h-9 px-3.5 rounded-xl bg-[#FA4616] hover:bg-[#FF6B35] disabled:opacity-40 text-white text-xs font-bold font-mono transition-colors shrink-0 inline-flex items-center gap-1.5"
           >
-            Aplicar
+            {isParsingLink && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            <span>{isParsingLink ? 'Procesando...' : 'Aplicar'}</span>
           </button>
         </div>
 

@@ -138,8 +138,8 @@ export interface CreateEventDto {
   address: string
   city: string
   state: string
-  latitude: number
-  longitude: number
+  latitude?: number | null
+  longitude?: number | null
   capacity: number
 }
 
@@ -155,8 +155,8 @@ export interface UpdateEventDto {
   address: string
   city: string
   state: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
   capacity: number
 }
 

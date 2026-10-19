@@ -22,8 +22,8 @@ export const step1Schema = z.object({
   city: z.string().min(2, 'La ciudad es requerida'),
   state: z.string().min(2, 'El estado o provincia es requerido'),
   capacity: z.number().min(1, 'La capacidad debe ser mayor a 0'),
-  latitude: z.number().min(-90, 'Latitud inválida').max(90, 'Latitud inválida'),
-  longitude: z.number().min(-180, 'Longitud inválida').max(180, 'Longitud inválida'),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
 })
 
 export type Step1FormValues = z.infer<typeof step1Schema>
@@ -213,25 +213,6 @@ export function Step1General({
               }
             }}
           />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Latitud"
-              type="number"
-              step="any"
-              placeholder="19.4326"
-              error={errors.latitude?.message}
-              {...register('latitude', { valueAsNumber: true })}
-            />
-            <Input
-              label="Longitud"
-              type="number"
-              step="any"
-              placeholder="-99.1332"
-              error={errors.longitude?.message}
-              {...register('longitude', { valueAsNumber: true })}
-            />
-          </div>
         </div>
       </div>
 
