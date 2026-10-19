@@ -670,17 +670,6 @@ export function AccountPage() {
                   )}
                 </div>
               </div>
-
-              <div className="pt-2">
-                <Button
-                  variant="outlined"
-                  onClick={handleLogout}
-                  className="w-full justify-center gap-2 text-xs font-semibold border-rose-900/40 text-rose-400 hover:bg-rose-950/30 hover:border-rose-800"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span>Cerrar Sesión Activa</span>
-                </Button>
-              </div>
             </div>
           </div>
 

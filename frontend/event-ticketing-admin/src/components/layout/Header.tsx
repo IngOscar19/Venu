@@ -107,17 +107,6 @@ export function Header() {
 
       {/* Right: Actions, Theme, User Menu */}
       <div className="flex items-center gap-3">
-        {/* Highlighted Primary Function: Crear Evento */}
-        {!isAdmin && (
-          <Link
-            to="/events/new"
-            className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-[#FA4616] hover:bg-[#FF6B35] px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#FA4616]/20 transition-all hover:scale-[1.02] active:scale-95"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Crear Evento</span>
-          </Link>
-        )}
-
         {/* Theme Toggle */}
         <ThemeToggle />
 
@@ -209,17 +198,6 @@ export function Header() {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="absolute top-16 left-0 right-0 border-b border-[#21262D] bg-[#161B22] p-4 shadow-2xl md:hidden z-40 space-y-3 animate-in slide-in-from-top-2 duration-200">
-          {!isAdmin && (
-            <Link
-              to="/events/new"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#FA4616] hover:bg-[#FF6B35] px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-[#FA4616]/20 transition-all"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Crear Evento</span>
-            </Link>
-          )}
-
           <nav className="space-y-1">
             {navLinks.map((item) => {
               const Icon = item.icon
