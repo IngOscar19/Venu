@@ -18,4 +18,5 @@ public interface IEventService
     Task DeleteImageAsync(Guid organizerId, Guid eventId, Guid imageId);
     Task PublishAsync(Guid organizerId, Guid eventId);
     Task CancelAsync(Guid organizerId, Guid eventId);
+    Task<EventDetailDto> RescheduleAsync(Guid organizerId, Guid eventId, RescheduleEventDto dto);
 }

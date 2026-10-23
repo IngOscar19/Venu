@@ -9,6 +9,7 @@ import type {
   EventTypeDto,
   EventStatus,
   ImageType,
+  RescheduleEventDto,
 } from '@/types/api'
 
 export const eventService = {
@@ -47,6 +48,11 @@ export const eventService = {
 
   cancel: async (id: string) => {
     await apiClient.post(`/api/events/${id}/cancel`)
+  },
+
+  reschedule: async (id: string, data: RescheduleEventDto) => {
+    const res = await apiClient.post<EventDetailDto>(`/api/events/${id}/reschedule`, data)
+    return res.data
   },
 
   addSection: async (eventId: string, data: CreateEventSectionDto) => {

@@ -436,6 +436,39 @@ public class EventService : IEventService
             httpContext: _httpContextAccessor.HttpContext);
     }
 
+    public async Task<EventDetailDto> RescheduleAsync(Guid organizerId, Guid eventId, RescheduleEventDto dto)
+    {
+        var ev = await _context.Events
+            .Include(e => e.Sections)
+            .Include(e => e.Images)
+            .FirstOrDefaultAsync(e => e.Id == eventId)
+            ?? throw new KeyNotFoundException("El evento no fue encontrado.");
+
+        if (ev.OrganizerId != organizerId)
+        {
+            throw new UnauthorizedAccessException("No tienes permisos para reprogramar este evento.");
+        }
+
+        ev.StartDate = dto.StartDate;
+        ev.EndDate = dto.EndDate;
+        ev.StartTime = dto.StartTime;
+        ev.EndTime = dto.EndTime;
+        ev.Status = EventStatus.RESCHEDULED;
+        ev.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        await _audit.LogAsync(
+            action:      "EVENT_RESCHEDULED",
+            entityType:  "Event",
+            entityId:    eventId,
+            userId:      GetUserIdFromContext(),
+            details:     $"Evento reprogramado: {ev.Name}. Nueva fecha: {ev.StartDate:yyyy-MM-dd} {ev.StartTime}. Motivo: {dto.Reason ?? "Sin motivo"}",
+            httpContext: _httpContextAccessor.HttpContext);
+
+        return await GetByIdAsync(ev.Id);
+    }
+
     private async Task<string> GenerateSlugAsync(string name, Guid? excludeEventId = null)
     {
         var base_slug = string.Concat(

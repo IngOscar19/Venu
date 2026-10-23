@@ -18,10 +18,13 @@ import {
   AlertCircle,
   Maximize2,
   ZoomIn,
+  CalendarClock,
 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/axios'
 import { useAuthStore } from '@/store/authStore'
 import { EventImageLightbox, LightboxImageItem } from '@/features/events/components/EventImageLightbox'
+import { RescheduleModal } from '@/features/events/components/RescheduleModal'
+import type { RescheduleEventDto } from '@/types/api'
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -29,9 +32,10 @@ export function EventDetailPage() {
   const user = useAuthStore((state) => state.user)
   const isAdmin = user?.role === 'ADMIN'
   const { data: event, isLoading, error } = useEventDetail(id)
-  const { publishMutation, cancelMutation } = useEventMutations()
+  const { publishMutation, cancelMutation, rescheduleMutation } = useEventMutations()
   const [actionError, setActionError] = useState<string | null>(null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -114,6 +118,21 @@ export function EventDetailPage() {
     })
   }
 
+  const handleReschedule = (dto: RescheduleEventDto) => {
+    setActionError(null)
+    rescheduleMutation.mutate(
+      { id: event.id, data: dto },
+      {
+        onSuccess: () => {
+          setIsRescheduleOpen(false)
+        },
+        onError: (err: any) => {
+          setActionError(err.message || 'Error al reprogramar el evento.')
+        },
+      }
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto w-full min-w-0 overflow-x-hidden pb-12">
       {/* Action Error Banner */}
@@ -179,7 +198,19 @@ export function EventDetailPage() {
               </Button>
             )}
 
-            {normalizedStatus === 'PUBLISHED' && (
+            {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsRescheduleOpen(true)}
+                className="gap-1.5 font-bold border border-purple-800/60 bg-purple-950/30 text-purple-300 hover:bg-purple-900/40 hover:text-white"
+              >
+                <CalendarClock className="w-4 h-4 text-purple-400" />
+                Reprogramar
+              </Button>
+            )}
+
+            {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -418,6 +449,14 @@ export function EventDetailPage() {
         onClose={() => setLightboxIndex(null)}
         onNavigate={(index) => setLightboxIndex(index)}
         eventName={event.name}
+      />
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        open={isRescheduleOpen}
+        event={event}
+        isLoading={rescheduleMutation.isPending}
+        onClose={() => setIsRescheduleOpen(false)}
+        onConfirm={handleReschedule}
       />
     </div>
   )

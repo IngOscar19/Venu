@@ -5,5 +5,6 @@ public enum EventStatus
     DRAFT,
     PUBLISHED,
     CANCELLED,
-    FINISHED
+    FINISHED,
+    RESCHEDULED
 }

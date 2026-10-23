@@ -34,9 +34,21 @@ export function useEventMutations() {
     },
   })
 
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: import('@/types/api').RescheduleEventDto }) =>
+      eventService.reschedule(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.all })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.mine })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.events.detail(id) })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboard.stats })
+    },
+  })
+
   return {
     publishMutation,
     cancelMutation,
     deleteMutation,
+    rescheduleMutation,
   }
 }

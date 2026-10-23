@@ -1,13 +1,22 @@
 export type Role = 'ADMIN' | 'ORGANIZER' | 'CUSTOMER' | 'ACCESS_OPERATOR'
 
-export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'FINISHED' | number | string
+export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'FINISHED' | 'RESCHEDULED' | number | string
 
-export function normalizeEventStatus(status: any): 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'FINISHED' {
+export function normalizeEventStatus(status: any): 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'FINISHED' | 'RESCHEDULED' {
   if (status === 0 || status === '0' || String(status).toUpperCase() === 'DRAFT') return 'DRAFT'
   if (status === 1 || status === '1' || String(status).toUpperCase() === 'PUBLISHED') return 'PUBLISHED'
   if (status === 2 || status === '2' || String(status).toUpperCase() === 'CANCELLED') return 'CANCELLED'
   if (status === 3 || status === '3' || String(status).toUpperCase() === 'FINISHED') return 'FINISHED'
+  if (status === 4 || status === '4' || String(status).toUpperCase() === 'RESCHEDULED') return 'RESCHEDULED'
   return 'DRAFT'
+}
+
+export interface RescheduleEventDto {
+  startDate: string
+  endDate: string
+  startTime: string
+  endTime: string
+  reason?: string
 }
 
 export type ImageType = 'POSTER' | 'GALLERY' | 'VENUE' | 'ARTIST'

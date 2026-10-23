@@ -1,7 +1,7 @@
 import { normalizeEventStatus, type EventDetailDto } from '@/types/api'
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge'
 import { Button } from '@/components/ui/Button'
-import { Eye, CheckCircle, Ban, Trash2, Edit } from 'lucide-react'
+import { Eye, CheckCircle, Ban, Trash2, Edit, CalendarClock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 
@@ -10,6 +10,7 @@ interface EventTableProps {
   onPublish: (id: string) => void
   onCancel: (id: string) => void
   onDelete: (id: string) => void
+  onReschedule?: (event: EventDetailDto) => void
   isPublishing?: boolean
   isCancelling?: boolean
   isAdmin?: boolean
@@ -20,6 +21,7 @@ export function EventTable({
   onPublish,
   onCancel,
   onDelete,
+  onReschedule,
   isAdmin: isAdminProp,
 }: EventTableProps) {
   const user = useAuthStore((state) => state.user)
@@ -92,7 +94,20 @@ export function EventTable({
                       </Button>
                     )}
 
-                    {!isAdmin && status === 'PUBLISHED' && (
+                    {!isAdmin && (status === 'PUBLISHED' || status === 'RESCHEDULED') && onReschedule && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onReschedule(e)}
+                        className="h-7 px-2 text-[11px] font-bold border border-purple-800/60 bg-purple-950/30 text-purple-300 hover:bg-purple-900/40 hover:text-white"
+                        title="Reprogramar fecha del evento"
+                      >
+                        <CalendarClock className="h-3 w-3 mr-1" />
+                        Reprogramar
+                      </Button>
+                    )}
+
+                    {!isAdmin && (status === 'PUBLISHED' || status === 'RESCHEDULED') && (
                       <Button
                         variant="destructive"
                         size="sm"

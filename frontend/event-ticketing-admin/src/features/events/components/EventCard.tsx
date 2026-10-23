@@ -1,7 +1,7 @@
 import { normalizeEventStatus, type EventDetailDto } from '@/types/api'
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge'
 import { Button } from '@/components/ui/Button'
-import { Calendar, MapPin, Users, Eye, CheckCircle, Ban, Trash2, Edit } from 'lucide-react'
+import { Calendar, MapPin, Users, Eye, CheckCircle, Ban, Trash2, Edit, CalendarClock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { API_BASE_URL } from '@/lib/axios'
 import { useAuthStore } from '@/store/authStore'
@@ -11,6 +11,7 @@ interface EventCardProps {
   onPublish: (id: string) => void
   onCancel: (id: string) => void
   onDelete: (id: string) => void
+  onReschedule?: (event: EventDetailDto) => void
   isPublishing?: boolean
   isCancelling?: boolean
   isDeleting?: boolean
@@ -22,6 +23,7 @@ export function EventCard({
   onPublish,
   onCancel,
   onDelete,
+  onReschedule,
   isPublishing = false,
   isCancelling = false,
   isAdmin: isAdminProp,
@@ -128,7 +130,20 @@ export function EventCard({
                 </Button>
               )}
 
-              {normalizedStatus === 'PUBLISHED' && (
+              {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && onReschedule && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onReschedule(event)}
+                  className="gap-1 text-xs font-bold border border-purple-800/60 bg-purple-950/30 text-purple-300 hover:bg-purple-900/40 hover:text-white"
+                  title="Reprogramar evento"
+                >
+                  <CalendarClock className="w-3.5 h-3.5" />
+                  Reprogramar
+                </Button>
+              )}
+
+              {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
                 <Button
                   variant="destructive"
                   size="sm"

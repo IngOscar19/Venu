@@ -30,7 +30,7 @@ public class TicketService : ITicketService
             .FirstOrDefaultAsync(e => e.Id == dto.EventId)
             ?? throw new KeyNotFoundException("El evento seleccionado no existe.");
 
-        if (ev.Status != EventStatus.PUBLISHED)
+        if (ev.Status != EventStatus.PUBLISHED && ev.Status != EventStatus.RESCHEDULED)
         {
             throw new ValidationException("El evento no se encuentra disponible para la venta de boletos.");
         }

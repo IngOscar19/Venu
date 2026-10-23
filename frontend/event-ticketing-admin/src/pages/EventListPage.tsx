@@ -5,11 +5,12 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { EventCard } from '@/features/events/components/EventCard'
 import { EventTable } from '@/features/events/components/EventTable'
 import { ConfirmModal } from '@/components/shared/ConfirmModal'
+import { RescheduleModal } from '@/features/events/components/RescheduleModal'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Link } from 'react-router-dom'
 import { Plus, Search, LayoutGrid, List, AlertCircle } from 'lucide-react'
-import { normalizeEventStatus } from '@/types/api'
+import { normalizeEventStatus, type EventDetailDto, type RescheduleEventDto } from '@/types/api'
 
 import { useAuthStore } from '@/store/authStore'
 
@@ -22,9 +23,10 @@ export function EventListPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [actionError, setActionError] = useState<string | null>(null)
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
+  const [rescheduleEvent, setRescheduleEvent] = useState<EventDetailDto | null>(null)
 
   const { data: events, isLoading } = useMyEvents()
-  const { publishMutation, cancelMutation, deleteMutation } = useEventMutations()
+  const { publishMutation, cancelMutation, deleteMutation, rescheduleMutation } = useEventMutations()
 
   const handlePublish = (id: string) => {
     setActionError(null)
@@ -50,6 +52,20 @@ export function EventListPage() {
         setDeleteEventId(null)
       },
     })
+  }
+
+  const handleConfirmReschedule = (dto: RescheduleEventDto) => {
+    if (!rescheduleEvent) return
+    setActionError(null)
+    rescheduleMutation.mutate(
+      { id: rescheduleEvent.id, data: dto },
+      {
+        onSuccess: () => setRescheduleEvent(null),
+        onError: (err: any) => {
+          setActionError(err.message || 'Error al reprogramar el evento.')
+        },
+      }
+    )
   }
 
   const filteredEvents = (events || []).filter((e) => {
@@ -183,6 +199,7 @@ export function EventListPage() {
           onPublish={handlePublish}
           onCancel={handleCancel}
           onDelete={(id) => setDeleteEventId(id)}
+          onReschedule={(event) => setRescheduleEvent(event)}
           isAdmin={isAdmin}
         />
       ) : (
@@ -194,6 +211,7 @@ export function EventListPage() {
               onPublish={handlePublish}
               onCancel={handleCancel}
               onDelete={(id) => setDeleteEventId(id)}
+              onReschedule={(event) => setRescheduleEvent(event)}
               isPublishing={publishMutation.isPending}
               isCancelling={cancelMutation.isPending}
               isAdmin={isAdmin}
@@ -211,6 +229,15 @@ export function EventListPage() {
         isLoading={deleteMutation.isPending}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteEventId(null)}
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        open={!!rescheduleEvent}
+        event={rescheduleEvent}
+        isLoading={rescheduleMutation.isPending}
+        onClose={() => setRescheduleEvent(null)}
+        onConfirm={handleConfirmReschedule}
       />
     </div>
   )

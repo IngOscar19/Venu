@@ -1,6 +1,6 @@
 import { normalizeEventStatus, type EventStatus } from '@/types/api'
 import { cn } from '@/lib/utils'
-import { Clock, CheckCircle2, XCircle, CalendarCheck } from 'lucide-react'
+import { Clock, CheckCircle2, XCircle, CalendarCheck, CalendarClock } from 'lucide-react'
 
 interface EventStatusBadgeProps {
   status: EventStatus
@@ -9,7 +9,7 @@ interface EventStatusBadgeProps {
 }
 
 const statusConfig: Record<
-  'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'FINISHED',
+  'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'FINISHED' | 'RESCHEDULED',
   { label: string; className: string; icon: React.ComponentType<{ className?: string }> }
 > = {
   DRAFT: {
@@ -31,6 +31,11 @@ const statusConfig: Record<
     label: 'FINALIZADO',
     className: 'bg-blue-950/40 text-blue-400 border-blue-800/60',
     icon: CalendarCheck,
+  },
+  RESCHEDULED: {
+    label: 'REPROGRAMADO',
+    className: 'bg-purple-950/50 text-purple-300 border-purple-600/70 shadow-[0_0_12px_rgba(168,85,247,0.25)]',
+    icon: CalendarClock,
   },
 }
 

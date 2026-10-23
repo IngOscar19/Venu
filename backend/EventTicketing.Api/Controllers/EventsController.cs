@@ -214,6 +214,15 @@ public class EventsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:guid}/reschedule")]
+    [Authorize]
+    public async Task<ActionResult<EventDetailDto>> Reschedule(Guid id, [FromBody] RescheduleEventDto dto)
+    {
+        var organizerId = GetOrganizerIdFromClaims();
+        var result = await _eventService.RescheduleAsync(organizerId, id, dto);
+        return Ok(result);
+    }
+
     private Guid GetOrganizerIdFromClaims()
     {
         var claim = User.Claims.FirstOrDefault(c => c.Type == "organizerId")?.Value;
