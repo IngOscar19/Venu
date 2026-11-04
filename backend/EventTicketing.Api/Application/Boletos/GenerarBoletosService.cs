@@ -1,5 +1,3 @@
-using Boleto = EventTicketing.Api.Domain.Entities.Ticket;
-using Orden = EventTicketing.Api.Domain.Entities.Order;
 using EventTicketing.Api.Domain.Entities;
 using EventTicketing.Api.Domain.Enums;
 using EventTicketing.Api.Infrastructure.Qr;

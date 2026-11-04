@@ -20,30 +20,66 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.ReferenceCode)
             .IsUnique();
 
-        builder.Property(o => o.TotalAmount)
+        builder.Property(o => o.UsuarioId)
+            .HasColumnName("user_id")
+            .IsRequired();
+
+        builder.Property(o => o.EventId)
+            .HasColumnName("event_id")
+            .IsRequired();
+
+        builder.Property(o => o.Total)
+            .HasColumnName("total_amount")
             .IsRequired()
             .HasColumnType("numeric(10,2)");
 
-        // Enum como string: "PENDING", "COMPLETED", "CANCELLED", "REFUNDED"
-        builder.Property(o => o.Status)
-            .HasConversion<string>()
+        // Enum de estado almacenado en la columna status ("PENDING", "COMPLETED", "CANCELLED", "EXPIRED")
+        builder.Property(o => o.Estado)
+            .HasColumnName("status")
             .HasMaxLength(20)
-            .HasDefaultValue(OrderStatus.PENDING);
+            .HasConversion(
+                e => e == EstadoOrden.Pendiente ? "PENDING"
+                   : e == EstadoOrden.Completada ? "COMPLETED"
+                   : e == EstadoOrden.Cancelada ? "CANCELLED"
+                   : e == EstadoOrden.Expirada ? "EXPIRED"
+                   : "PENDING",
+                s => s == "COMPLETED" || s == "Completada" ? EstadoOrden.Completada
+                   : s == "CANCELLED" || s == "Cancelada" ? EstadoOrden.Cancelada
+                   : s == "EXPIRED" || s == "Expirada" ? EstadoOrden.Expirada
+                   : EstadoOrden.Pendiente)
+            .HasDefaultValue(EstadoOrden.Pendiente);
 
-        builder.Property(o => o.CreatedAt)
+        builder.Property(o => o.Fecha)
+            .HasColumnName("created_at")
             .HasDefaultValueSql("now()");
 
         builder.Property(o => o.UpdatedAt)
+            .HasColumnName("updated_at")
             .HasDefaultValueSql("now()");
 
         builder.HasOne(o => o.User)
             .WithMany()
-            .HasForeignKey(o => o.UserId)
-            .OnDelete(DeleteBehavior.Restrict); // No eliminar usuario si tiene órdenes
+            .HasForeignKey(o => o.UsuarioId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(o => o.Event)
             .WithMany()
             .HasForeignKey(o => o.EventId)
-            .OnDelete(DeleteBehavior.Restrict); // No eliminar evento si tiene órdenes
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(o => o.Tickets)
+            .WithOne(t => t.Order)
+            .HasForeignKey(t => t.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(o => o.Detalles)
+            .WithOne(d => d.Orden)
+            .HasForeignKey(d => d.OrdenId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(o => o.Pago)
+            .WithOne(p => p.Orden)
+            .HasForeignKey<Pago>(p => p.OrdenId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
