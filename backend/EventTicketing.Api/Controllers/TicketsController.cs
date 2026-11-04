@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EventTicketing.Api.DTOs.Tickets;
+using EventTicketing.Api.Infrastructure.Qr;
 using EventTicketing.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +13,12 @@ namespace EventTicketing.Api.Controllers;
 public class TicketsController : ControllerBase
 {
     private readonly ITicketService _ticketService;
+    private readonly IGeneradorQr _generadorQr;
 
-    public TicketsController(ITicketService ticketService)
+    public TicketsController(ITicketService ticketService, IGeneradorQr generadorQr)
     {
         _ticketService = ticketService;
+        _generadorQr = generadorQr;
     }
 
     [HttpPost("purchase")]
@@ -56,6 +59,16 @@ public class TicketsController : ControllerBase
         var userId = GetUserId();
         var result = await _ticketService.GetTicketByIdAsync(userId, id);
         return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/qr")]
+    [HttpGet("{id:guid}/qr.png")]
+    public async Task<IActionResult> GetTicketQr(Guid id)
+    {
+        var userId = GetUserId();
+        var ticket = await _ticketService.GetTicketByIdAsync(userId, id);
+        var png = _generadorQr.GenerarPng(ticket.TicketCode);
+        return File(png, "image/png");
     }
 
     private Guid GetUserId()

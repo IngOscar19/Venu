@@ -25,6 +25,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
 
+    // Aliases para compatibilidad con guías / controladores de boletos
+    public DbSet<Ticket> Boletos => Set<Ticket>();
+    public DbSet<Order> Ordenes => Set<Order>();
+
     // ── Auditoría ────────────────────────────────────────────────────
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 

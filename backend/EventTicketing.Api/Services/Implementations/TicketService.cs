@@ -4,6 +4,7 @@ using EventTicketing.Api.Data;
 using EventTicketing.Api.Domain.Entities;
 using EventTicketing.Api.Domain.Enums;
 using EventTicketing.Api.DTOs.Tickets;
+using EventTicketing.Api.Infrastructure.Qr;
 using EventTicketing.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace EventTicketing.Api.Services.Implementations;
 public class TicketService : ITicketService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IGeneradorQr _generadorQr;
 
-    public TicketService(ApplicationDbContext context)
+    public TicketService(ApplicationDbContext context, IGeneradorQr generadorQr)
     {
         _context = context;
+        _generadorQr = generadorQr;
     }
 
     public async Task<OrderDto> PurchaseTicketsAsync(Guid userId, CreateOrderDto dto)
@@ -166,7 +169,10 @@ public class TicketService : ITicketService
             throw new UnauthorizedAccessException("No tienes permisos para ver este boleto.");
         }
 
-        return MapToTicketDto(ticket);
+        var png = _generadorQr.GenerarPng(ticket.TicketCode);
+        var qrBase64 = Convert.ToBase64String(png);
+
+        return MapToTicketDto(ticket, qrBase64);
     }
 
     private static string GenerateReferenceCode()
@@ -207,12 +213,15 @@ public class TicketService : ITicketService
                 t.CreatedAt,
                 o.Event?.Name ?? string.Empty,
                 o.Event?.StartDate ?? DateTime.MinValue,
-                o.Event?.VenueName ?? string.Empty
+                o.Event?.VenueName ?? string.Empty,
+                null
             )).ToList()
         );
     }
 
-    private static TicketDto MapToTicketDto(Ticket t)
+    private static TicketDto MapToTicketDto(Ticket t) => MapToTicketDto(t, null);
+
+    private static TicketDto MapToTicketDto(Ticket t, string? qrBase64)
     {
         return new TicketDto(
             t.Id,
@@ -228,7 +237,8 @@ public class TicketService : ITicketService
             t.CreatedAt,
             t.Order?.Event?.Name ?? string.Empty,
             t.Order?.Event?.StartDate ?? DateTime.MinValue,
-            t.Order?.Event?.VenueName ?? string.Empty
+            t.Order?.Event?.VenueName ?? string.Empty,
+            qrBase64
         );
     }
 }
