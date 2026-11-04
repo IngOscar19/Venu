@@ -279,42 +279,75 @@ namespace EventTicketing.Api.Migrations
                     b.ToTable("event_types", (string)null);
                 });
 
+            modelBuilder.Entity("EventTicketing.Api.Domain.Entities.OrdenDetalle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OrdenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<Guid>("TipoBoletoId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrdenId");
+
+                    b.HasIndex("TipoBoletoId");
+
+                    b.ToTable("OrdenDetalles", (string)null);
+                });
+
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<string>("Estado")
+                        .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("PENDING")
+                        .HasColumnName("status");
 
                     b.Property<Guid>("EventId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<DateTime>("Fecha")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<string>("ReferenceCode")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("PENDING");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasColumnType("numeric(10,2)");
+                    b.Property<decimal>("Total")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("total_amount");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.HasKey("Id");
 
@@ -323,7 +356,7 @@ namespace EventTicketing.Api.Migrations
                     b.HasIndex("ReferenceCode")
                         .IsUnique();
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UsuarioId");
 
                     b.ToTable("orders", (string)null);
                 });
@@ -472,6 +505,41 @@ namespace EventTicketing.Api.Migrations
                     b.ToTable("organizer_verifications", (string)null);
                 });
 
+            modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Pago", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("Fecha")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("MetodoPago")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<decimal>("Monto")
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<Guid>("OrdenId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrdenId")
+                        .IsUnique();
+
+                    b.ToTable("Pagos", (string)null);
+                });
+
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Ticket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -527,6 +595,38 @@ namespace EventTicketing.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("tickets", (string)null);
+                });
+
+            modelBuilder.Entity("EventTicketing.Api.Domain.Entities.TipoBoleto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CantidadDisponible")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CantidadVendida")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("EventoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("Precio")
+                        .HasColumnType("numeric(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventoId");
+
+                    b.ToTable("TiposBoleto", (string)null);
                 });
 
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.User", b =>
@@ -632,6 +732,25 @@ namespace EventTicketing.Api.Migrations
                     b.Navigation("Event");
                 });
 
+            modelBuilder.Entity("EventTicketing.Api.Domain.Entities.OrdenDetalle", b =>
+                {
+                    b.HasOne("EventTicketing.Api.Domain.Entities.Order", "Orden")
+                        .WithMany("Detalles")
+                        .HasForeignKey("OrdenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EventTicketing.Api.Domain.Entities.TipoBoleto", "TipoBoleto")
+                        .WithMany()
+                        .HasForeignKey("TipoBoletoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Orden");
+
+                    b.Navigation("TipoBoleto");
+                });
+
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Order", b =>
                 {
                     b.HasOne("EventTicketing.Api.Domain.Entities.Event", "Event")
@@ -642,7 +761,7 @@ namespace EventTicketing.Api.Migrations
 
                     b.HasOne("EventTicketing.Api.Domain.Entities.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("UsuarioId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -680,6 +799,17 @@ namespace EventTicketing.Api.Migrations
                     b.Navigation("ReviewedByAdmin");
                 });
 
+            modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Pago", b =>
+                {
+                    b.HasOne("EventTicketing.Api.Domain.Entities.Order", "Orden")
+                        .WithOne("Pago")
+                        .HasForeignKey("EventTicketing.Api.Domain.Entities.Pago", "OrdenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Orden");
+                });
+
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Ticket", b =>
                 {
                     b.HasOne("EventTicketing.Api.Domain.Entities.EventSection", "EventSection")
@@ -699,6 +829,17 @@ namespace EventTicketing.Api.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("EventTicketing.Api.Domain.Entities.TipoBoleto", b =>
+                {
+                    b.HasOne("EventTicketing.Api.Domain.Entities.Event", "Evento")
+                        .WithMany()
+                        .HasForeignKey("EventoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Evento");
+                });
+
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Event", b =>
                 {
                     b.Navigation("Images");
@@ -713,6 +854,10 @@ namespace EventTicketing.Api.Migrations
 
             modelBuilder.Entity("EventTicketing.Api.Domain.Entities.Order", b =>
                 {
+                    b.Navigation("Detalles");
+
+                    b.Navigation("Pago");
+
                     b.Navigation("Tickets");
                 });
 

@@ -1,6 +1,10 @@
 using System.Text;
+using EventTicketing.Api.Application.Boletos;
+using EventTicketing.Api.Application.Ordenes;
 using EventTicketing.Api.Common.Middlewares;
 using EventTicketing.Api.Data;
+using EventTicketing.Api.Infrastructure.BackgroundJobs;
+using EventTicketing.Api.Infrastructure.Qr;
 using EventTicketing.Api.Services.Implementations;
 using EventTicketing.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -109,6 +113,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<IAccessService, AccessService>();
 builder.Services.AddScoped<IOrganizerService, OrganizerService>();
+builder.Services.AddScoped<IGeneradorQr, QrCoderGenerador>();
+builder.Services.AddScoped<GenerarBoletosService>();
+builder.Services.AddScoped<CrearOrdenCommand>();
+builder.Services.AddHostedService<ExpiracionOrdenesJob>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
