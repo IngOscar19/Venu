@@ -1,12 +1,15 @@
 using System.Text;
 using EventTicketing.Api.Application.Boletos;
 using EventTicketing.Api.Application.Ordenes;
+using EventTicketing.Api.Application.Pagos;
 using EventTicketing.Api.Common.Middlewares;
 using EventTicketing.Api.Data;
 using EventTicketing.Api.Infrastructure.BackgroundJobs;
+using EventTicketing.Api.Infrastructure.Pagos;
 using EventTicketing.Api.Infrastructure.Qr;
 using EventTicketing.Api.Services.Implementations;
 using EventTicketing.Api.Services.Interfaces;
+using MercadoPago.Config;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -117,6 +120,19 @@ builder.Services.AddScoped<IGeneradorQr, QrCoderGenerador>();
 builder.Services.AddScoped<GenerarBoletosService>();
 builder.Services.AddScoped<CrearOrdenCommand>();
 builder.Services.AddHostedService<ExpiracionOrdenesJob>();
+
+// Configuración y servicios de Mercado Pago
+var mpAccessToken = builder.Configuration["MercadoPago:AccessToken"]
+    ?? Environment.GetEnvironmentVariable("MERCADOPAGO_ACCESS_TOKEN")
+    ?? Environment.GetEnvironmentVariable("MercadoPago__AccessToken");
+if (!string.IsNullOrWhiteSpace(mpAccessToken))
+{
+    MercadoPagoConfig.AccessToken = mpAccessToken;
+}
+
+builder.Services.AddScoped<IProcesadorPago, MercadoPagoProcesador>();
+builder.Services.AddScoped<ConfirmarPagoCommand>();
+builder.Services.AddScoped<GenerarBoletosService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

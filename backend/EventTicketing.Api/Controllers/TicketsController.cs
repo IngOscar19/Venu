@@ -26,7 +26,7 @@ public class TicketsController : ControllerBase
     {
         var userId = GetUserId();
         var result = await _ticketService.PurchaseTicketsAsync(userId, dto);
-        return CreatedAtAction(nameof(GetOrderById), new { id = result.Id }, result);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpGet("my-orders")]

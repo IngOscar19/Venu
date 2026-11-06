@@ -29,6 +29,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Ticket> Boletos => Set<Ticket>();
     public DbSet<Order> Ordenes => Set<Order>();
     public DbSet<TipoBoleto> TiposBoleto => Set<TipoBoleto>();
+    public DbSet<TipoBoleto> TiposBoletos => Set<TipoBoleto>();
     public DbSet<OrdenDetalle> OrdenDetalles => Set<OrdenDetalle>();
     public DbSet<Pago> Pagos => Set<Pago>();
 
