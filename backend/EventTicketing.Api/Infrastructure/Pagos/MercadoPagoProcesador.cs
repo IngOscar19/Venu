@@ -42,7 +42,19 @@ public class MercadoPagoProcesador : IProcesadorPago
         if (success.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             request.AutoReturn = "approved";
 
-        if (!string.IsNullOrWhiteSpace(orden.User?.Email))
+        // En modo prueba (MercadoPago:Sandbox=true) no se envía el correo de un usuario real como pagador:
+        // Mercado Pago rechaza mezclar un comprador real con un vendedor de prueba ("una de las partes es de prueba").
+        // Hoy las credenciales de prueba también empiezan con APP_USR-, por eso se usa un flag y no el prefijo.
+        // Opcionalmente se puede forzar el correo del comprador de prueba con MercadoPago:TestPayerEmail.
+        var esSandbox = _config.GetValue<bool>("MercadoPago:Sandbox");
+        var correoPrueba = _config["MercadoPago:TestPayerEmail"];
+
+        if (esSandbox)
+        {
+            if (!string.IsNullOrWhiteSpace(correoPrueba))
+                request.Payer = new PreferencePayerRequest { Email = correoPrueba };
+        }
+        else if (!string.IsNullOrWhiteSpace(orden.User?.Email))
         {
             request.Payer = new PreferencePayerRequest
             {

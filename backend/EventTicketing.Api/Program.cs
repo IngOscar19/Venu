@@ -131,7 +131,11 @@ if (!string.IsNullOrWhiteSpace(mpAccessToken))
     MercadoPagoConfig.AccessToken = mpAccessToken;
 }
 
-builder.Services.AddScoped<IProcesadorPago, MercadoPagoProcesador>();
+// Pagos:Simulado=true -> checkout falso para pruebas (no usa Mercado Pago). Debe estar en false en producción real.
+if (builder.Configuration.GetValue<bool>("Pagos:Simulado"))
+    builder.Services.AddScoped<IProcesadorPago, ProcesadorPagoSimulado>();
+else
+    builder.Services.AddScoped<IProcesadorPago, MercadoPagoProcesador>();
 builder.Services.AddScoped<ConfirmarPagoCommand>();
 builder.Services.AddScoped<GenerarBoletosService>();
 

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/theme/broncos_theme.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../data/ordenes_repository.dart';
 
 class PagoWebviewScreen extends StatefulWidget {
   final String checkoutUrl;
@@ -32,6 +33,11 @@ class _PagoWebviewScreenState extends State<PagoWebviewScreen> {
   void _inicializarWebView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // User agent móvil: evita que Mercado Pago sirva el diseño de escritorio
+      ..setUserAgent(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 '
+        '(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -107,11 +113,62 @@ class _PagoWebviewScreenState extends State<PagoWebviewScreen> {
     );
   }
 
+  /// Regresa dentro de Mercado Pago mientras haya historial; si no, el usuario sale del pago:
+  /// se confirma y se cancela la orden pendiente para liberar los boletos reservados.
+  Future<void> _manejarRetroceso() async {
+    if (await _controller.canGoBack()) {
+      await _controller.goBack();
+      return;
+    }
+    if (!mounted || _navegado) return;
+
+    final salir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar la compra?'),
+        content: const Text(
+            'Si sales ahora, los boletos reservados se liberarán y tendrás que iniciar la compra de nuevo.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Seguir pagando'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cancelar compra'),
+          ),
+        ],
+      ),
+    );
+    if (salir != true) return;
+
+    // Si la orden ya estaba pagada el backend responde error y se ignora.
+    try {
+      await OrdenesRepository().cancelarOrden(widget.ordenId);
+    } catch (_) {}
+
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _manejarRetroceso();
+      },
+      child: _construirPantalla(context),
+    );
+  }
+
+  Widget _construirPantalla(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: _manejarRetroceso,
+        ),
         title: Text(
           'Pasarela de pago',
           style: GoogleFonts.plusJakartaSans(
@@ -147,14 +204,23 @@ class _PagoWebviewScreenState extends State<PagoWebviewScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: LoadingIndicator(message: 'Cargando Mercado Pago...'),
+      // En pantallas anchas (escritorio/tablet) se limita el ancho a tamaño de teléfono
+      // para que Mercado Pago sirva su diseño móvil; en teléfonos ocupa todo el ancho.
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Stack(
+              children: [
+                WebViewWidget(controller: _controller),
+                if (_isLoading)
+                  const Center(
+                    child: LoadingIndicator(message: 'Cargando Mercado Pago...'),
+                  ),
+              ],
             ),
-        ],
+          ),
+        ),
       ),
     );
   }

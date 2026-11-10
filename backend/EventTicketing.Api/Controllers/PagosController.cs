@@ -102,6 +102,65 @@ public class PagosController : ControllerBase
         return Ok();
     }
 
+    // ───────── Checkout SIMULADO (solo si Pagos:Simulado=true) ─────────
+
+    private bool SimulacionActiva => _config.GetValue<bool>("Pagos:Simulado");
+
+    [HttpGet("simulado/{ordenId:guid}/checkout")]
+    [AllowAnonymous] // lo abre el WebView, que no lleva JWT
+    public async Task<IActionResult> CheckoutSimulado(Guid ordenId)
+    {
+        if (!SimulacionActiva) return NotFound();
+
+        var orden = await _db.Ordenes.AsNoTracking().FirstOrDefaultAsync(o => o.Id == ordenId);
+        if (orden is null || orden.Estado != EstadoOrden.Pendiente)
+            return Content(PaginaSimulada("Orden no disponible", "Esta orden ya no está pendiente de pago.", null), "text/html; charset=utf-8");
+
+        var html = PaginaSimulada(
+            "Pago de prueba",
+            $"Total a pagar: <b>${orden.Total:0.00} MXN</b><br/>Entorno de pruebas: no se realiza ningún cobro real.",
+            ordenId);
+        return Content(html, "text/html; charset=utf-8");
+    }
+
+    [HttpGet("simulado/{ordenId:guid}/resultado")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResultadoSimulado(Guid ordenId, [FromQuery] string status)
+    {
+        if (!SimulacionActiva) return NotFound();
+
+        var aprobado = status == "approved";
+        var orden = await _db.Ordenes.AsNoTracking().FirstOrDefaultAsync(o => o.Id == ordenId);
+        if (orden is null) return NotFound();
+
+        await _confirmarPago.EjecutarAsync(new ResultadoPago(
+            aprobado ? "approved" : "rejected",
+            ordenId.ToString(),
+            $"SIM-{ordenId}",
+            orden.Total,
+            "simulado"));
+
+        return Redirect($"miapp://pago-resultado?status={(aprobado ? "approved" : "rejected")}");
+    }
+
+    private static string PaginaSimulada(string titulo, string detalle, Guid? ordenId)
+    {
+        var botones = ordenId is null ? "" : $@"
+            <a class='btn ok' href='/api/pagos/simulado/{ordenId}/resultado?status=approved'>Pagar (simulado)</a>
+            <a class='btn no' href='/api/pagos/simulado/{ordenId}/resultado?status=rejected'>Rechazar pago</a>";
+        return $@"<!doctype html><html lang='es'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<style>
+body{{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:24px;background:#f5f5f5;color:#222}}
+.card{{background:#fff;border-radius:12px;padding:24px;max-width:420px;margin:40px auto;box-shadow:0 2px 8px #0002;text-align:center}}
+.tag{{display:inline-block;background:#fde68a;color:#92400e;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700}}
+.btn{{display:block;margin-top:14px;padding:14px;border-radius:10px;text-decoration:none;font-weight:700;color:#fff}}
+.ok{{background:#16a34a}}.no{{background:#6b7280}}
+</style></head><body><div class='card'>
+<span class='tag'>MODO PRUEBA</span><h2>{titulo}</h2><p>{detalle}</p>{botones}
+</div></body></html>";
+    }
+
     /// <summary>Valida x-signature (HMAC-SHA256) cuando MercadoPago:WebhookSecret está configurado.</summary>
     private bool FirmaValida(string dataId)
     {

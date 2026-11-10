@@ -21,6 +21,19 @@ class TipoBoleto {
   bool get tieneDisponibilidad => disponibilidadRestante > 0;
 
   factory TipoBoleto.fromJson(Map<String, dynamic> json) {
+    // El backend (GET /eventos/{id}/tipos-boleto) devuelve "disponibles" = boletos restantes.
+    if (json.containsKey('disponibles')) {
+      final restantes = int.tryParse(json['disponibles'].toString()) ?? 0;
+      return TipoBoleto(
+        id: (json['id'] ?? '').toString(),
+        eventoId: (json['eventoId'] ?? json['eventId'] ?? '').toString(),
+        nombre: (json['nombre'] ?? json['name'] ?? '').toString(),
+        descripcion: json['descripcion'] ?? json['description'],
+        precio: double.tryParse((json['precio'] ?? 0).toString()) ?? 0,
+        cantidadDisponible: restantes,
+        cantidadVendida: 0,
+      );
+    }
     return TipoBoleto(
       id: (json['id'] ?? json['eventSectionId'] ?? '').toString(),
       eventoId: (json['eventoId'] ?? json['eventId'] ?? '').toString(),
