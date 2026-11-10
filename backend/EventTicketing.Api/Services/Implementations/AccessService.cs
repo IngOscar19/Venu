@@ -15,7 +15,7 @@ public class AccessService : IAccessService
         _context = context;
     }
 
-    public async Task<TicketValidationResultDto> ValidateAndCheckInAsync(ValidateTicketDto dto)
+    public async Task<TicketValidationResultDto> ValidateAndCheckInAsync(ValidateTicketDto dto, Guid? organizerId = null, bool isAdmin = false)
     {
         if (string.IsNullOrWhiteSpace(dto.TicketCode))
         {
@@ -44,6 +44,20 @@ public class AccessService : IAccessService
                 Success: false,
                 Message: "Boleto no encontrado o código inválido.",
                 TicketCode: normalizedCode,
+                AttendeeName: null,
+                SectionName: null,
+                EventName: null,
+                UsedAt: null
+            );
+        }
+
+        // Un organizador solo puede validar boletos de sus propios eventos
+        if (!isAdmin && (organizerId is null || ticket.Order?.Event?.OrganizerId != organizerId))
+        {
+            return new TicketValidationResultDto(
+                Success: false,
+                Message: "No tienes permiso para validar boletos de este evento.",
+                TicketCode: null,
                 AttendeeName: null,
                 SectionName: null,
                 EventName: null,

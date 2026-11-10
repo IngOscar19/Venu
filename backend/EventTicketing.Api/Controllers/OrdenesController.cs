@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using EventTicketing.Api.Application.Ordenes;
+using EventTicketing.Api.Common.Helpers;
 using EventTicketing.Api.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,6 +13,8 @@ namespace EventTicketing.Api.Controllers;
 [Authorize]
 public class OrdenesController : ControllerBase
 {
+    private static readonly TimeSpan TiempoLimite = TimeSpan.FromMinutes(15);
+
     private readonly CrearOrdenCommand _crearOrden;
     private readonly AppDbContext _db;
 
@@ -25,13 +27,14 @@ public class OrdenesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Crear([FromBody] List<ItemOrdenRequest> items)
     {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(claim) || !Guid.TryParse(claim, out var usuarioId))
-        {
+        var usuarioId = User.GetUserId();
+        if (usuarioId is null)
             return Unauthorized("Usuario no autenticado o token inválido.");
-        }
 
-        var resultado = await _crearOrden.EjecutarAsync(usuarioId, items);
+        var resultado = await _crearOrden.EjecutarAsync(usuarioId.Value, items);
+
+        if (resultado.Error is not null)
+            return BadRequest(new { mensaje = resultado.Error });
 
         if (!resultado.Exito)
             return Conflict(new { mensaje = "Ya no hay disponibilidad suficiente", tipoBoletoId = resultado.TipoBoletoSinDisponibilidad });
@@ -42,28 +45,52 @@ public class OrdenesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> Consultar(Guid id)
     {
+        var usuarioId = User.GetUserId();
+        if (usuarioId is null) return Unauthorized();
+
         var orden = await _db.Ordenes
+            .AsNoTracking()
             .Include(o => o.Detalles).ThenInclude(d => d.TipoBoleto)
             .FirstOrDefaultAsync(o => o.Id == id);
 
-        if (orden is null) return NotFound();
-        return Ok(new { orden.Id, Estado = orden.Estado.ToString(), orden.Total, orden.Fecha });
+        // 404 (y no 403) para no revelar si la orden existe
+        if (orden is null || (orden.UsuarioId != usuarioId.Value && !User.IsAdminUser())) return NotFound();
+
+        return Ok(new
+        {
+            orden.Id,
+            Estado = orden.Estado.ToString(),
+            orden.Total,
+            orden.Fecha,
+            ExpiraEn = orden.Fecha + TiempoLimite,
+            orden.EventId,
+            Items = orden.Detalles.Select(d => new
+            {
+                d.TipoBoletoId,
+                Nombre = d.TipoBoleto?.Nombre,
+                d.Cantidad,
+                d.PrecioUnitario
+            })
+        });
     }
 
     [HttpPost("{id}/cancelar")]
     public async Task<IActionResult> Cancelar(Guid id)
     {
+        var usuarioId = User.GetUserId();
+        if (usuarioId is null) return Unauthorized();
+
         var orden = await _db.Ordenes.Include(o => o.Detalles).ThenInclude(d => d.TipoBoleto)
             .FirstOrDefaultAsync(o => o.Id == id);
 
-        if (orden is null) return NotFound();
+        if (orden is null || orden.UsuarioId != usuarioId.Value) return NotFound();
         if (orden.Estado != EstadoOrden.Pendiente) return BadRequest("Solo se pueden cancelar órdenes pendientes.");
 
         foreach (var detalle in orden.Detalles)
         {
             if (detalle.TipoBoleto != null)
             {
-                detalle.TipoBoleto.CantidadVendida -= detalle.Cantidad; // libera inventario
+                detalle.TipoBoleto.CantidadVendida = Math.Max(0, detalle.TipoBoleto.CantidadVendida - detalle.Cantidad); // libera inventario
             }
         }
 

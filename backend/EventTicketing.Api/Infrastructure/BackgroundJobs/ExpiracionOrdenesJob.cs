@@ -40,7 +40,7 @@ public class ExpiracionOrdenesJob : BackgroundService
                     {
                         if (detalle.TipoBoleto != null)
                         {
-                            detalle.TipoBoleto.CantidadVendida -= detalle.Cantidad;
+                            detalle.TipoBoleto.CantidadVendida = Math.Max(0, detalle.TipoBoleto.CantidadVendida - detalle.Cantidad);
                         }
                     }
 

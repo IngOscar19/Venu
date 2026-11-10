@@ -1,3 +1,4 @@
+using EventTicketing.Api.Application.Ordenes;
 using System.Security.Claims;
 using EventTicketing.Api.Domain.Entities;
 using EventTicketing.Api.Domain.Enums;
@@ -22,6 +23,8 @@ public class EventosController : ControllerBase
     {
         var evento = await _db.Events.FindAsync(id);
         if (evento is null) return NotFound();
+
+        await TiposBoletoSync.EnsureAsync(_db, id);
 
         var tipos = await _db.TiposBoleto
             .Where(t => t.EventoId == id)

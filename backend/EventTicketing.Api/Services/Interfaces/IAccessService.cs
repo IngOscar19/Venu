@@ -4,5 +4,5 @@ namespace EventTicketing.Api.Services.Interfaces;
 
 public interface IAccessService
 {
-    Task<TicketValidationResultDto> ValidateAndCheckInAsync(ValidateTicketDto dto);
+    Task<TicketValidationResultDto> ValidateAndCheckInAsync(ValidateTicketDto dto, Guid? organizerId = null, bool isAdmin = false);
 }

@@ -16,28 +16,44 @@ public class GenerarBoletosService
         _generadorQr = generadorQr;
     }
 
-    public async Task GenerarParaOrdenAsync(Orden orden)
+    /// <summary>
+    /// Genera un boleto por cada unidad de cada detalle de la orden pagada.
+    /// No hace SaveChanges: lo hace quien llama para que todo quede en una sola transacción.
+    /// </summary>
+    public async Task GenerarDesdeOrdenAsync(Orden orden)
     {
-        foreach (var boleto in orden.Tickets)
+        if (orden.Tickets.Count > 0 || await _db.Tickets.AnyAsync(t => t.OrderId == orden.Id)) return;
+
+        var secciones = await _db.EventSections.Where(s => s.EventId == orden.EventId).ToListAsync();
+        var nombre = $"{orden.User?.FirstName} {orden.User?.LastName}".Trim();
+        var correo = orden.User?.Email ?? string.Empty;
+
+        foreach (var detalle in orden.Detalles)
         {
-            if (boleto.OrderId == Guid.Empty)
-            {
-                boleto.OrderId = orden.Id;
-            }
+            // TipoBoleto.Id == EventSection.Id (ver TiposBoletoSync); si no, se busca por nombre
+            var seccion = secciones.FirstOrDefault(s => s.Id == detalle.TipoBoletoId)
+                ?? secciones.FirstOrDefault(s => s.Name == detalle.TipoBoleto?.Nombre)
+                ?? secciones.FirstOrDefault();
+            if (seccion is null)
+                throw new InvalidOperationException($"El evento {orden.EventId} no tiene secciones para emitir boletos.");
 
-            if (string.IsNullOrWhiteSpace(boleto.TicketCode))
+            for (var i = 0; i < detalle.Cantidad; i++)
             {
-                boleto.TicketCode = Boleto.GenerateCode();
-            }
-
-            if (!_db.Tickets.Local.Contains(boleto))
-            {
-                _db.Boletos.Add(boleto);
+                var boleto = new Boleto
+                {
+                    OrderId = orden.Id,
+                    EventSectionId = seccion.Id,
+                    AttendeeName = nombre,
+                    AttendeeEmail = correo.ToLower(),
+                    Price = detalle.PrecioUnitario,
+                    Status = TicketStatus.VALID,
+                    TicketCode = Boleto.GenerateCode(),
+                    CreatedAt = DateTime.UtcNow
+                };
+                orden.Tickets.Add(boleto);
+                _db.Tickets.Add(boleto);
             }
         }
-
-        // SaveChanges lo hace quien llama (ConfirmarPagoCommand / PurchaseTickets), para que todo quede en una sola transacción
-        await Task.CompletedTask;
     }
 
     public async Task<List<Boleto>> GenerarParaOrdenAsync(
@@ -57,7 +73,6 @@ public class GenerarBoletosService
                 Price = item.Price,
                 Status = TicketStatus.VALID,
                 CreatedAt = DateTime.UtcNow
-                // CodigoQr ya se autogenera en el constructor de la entidad
             };
 
             orden.Tickets.Add(boleto);

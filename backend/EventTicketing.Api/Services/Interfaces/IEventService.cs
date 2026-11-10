@@ -6,8 +6,8 @@ namespace EventTicketing.Api.Services.Interfaces;
 
 public interface IEventService
 {
-    Task<IEnumerable<EventDetailDto>> GetAllAsync(string? search = null, string? city = null, DateTime? fromDate = null, EventStatus? status = null);
-    Task<IEnumerable<EventDetailDto>> GetOrganizerEventsAsync(Guid organizerId);
+    Task<IEnumerable<EventDetailDto>> GetAllAsync(string? search = null, string? city = null, DateTime? fromDate = null, EventStatus? status = null, bool onlyPublic = true, bool includeFinished = false);
+    Task<IEnumerable<EventDetailDto>> GetOrganizerEventsAsync(Guid organizerId, bool includeFinished = false);
     Task<EventDetailDto> GetByIdAsync(Guid id);
     Task<EventDetailDto> CreateAsync(Guid organizerId, CreateEventDto dto);
     Task<EventDetailDto> UpdateAsync(Guid organizerId, Guid eventId, UpdateEventDto dto);

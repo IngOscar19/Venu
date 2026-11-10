@@ -1,3 +1,4 @@
+using EventTicketing.Api.Common.Helpers;
 using EventTicketing.Api.Common.Exceptions;
 using EventTicketing.Api.Data;
 using EventTicketing.Api.Domain.Entities;
@@ -28,7 +29,7 @@ public class EventService : IEventService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<IEnumerable<EventDetailDto>> GetAllAsync(string? search = null, string? city = null, DateTime? fromDate = null, EventStatus? status = null)
+    public async Task<IEnumerable<EventDetailDto>> GetAllAsync(string? search = null, string? city = null, DateTime? fromDate = null, EventStatus? status = null, bool onlyPublic = true, bool includeFinished = false)
     {
         var query = _context.Events
             .Include(e => e.Organizer)
@@ -54,25 +55,45 @@ public class EventService : IEventService
             query = query.Where(e => e.StartDate >= fromDate.Value);
         }
 
-        if (status.HasValue)
+        if (onlyPublic)
+        {
+            // El catálogo público solo muestra eventos publicados (o reprogramados) y vigentes
+            query = query.Where(e => e.Status == EventStatus.PUBLISHED || e.Status == EventStatus.RESCHEDULED);
+        }
+        else if (status.HasValue)
         {
             query = query.Where(e => e.Status == status.Value);
         }
 
+        if (!includeFinished)
+        {
+            query = query.Where(e => e.Status != EventStatus.FINISHED);
+        }
+
         var events = await query.OrderBy(e => e.StartDate).ToListAsync();
+
+        if (!includeFinished)
+        {
+            // Aunque el job aún no los haya marcado, un evento cuya fecha ya pasó no se muestra
+            events = events.Where(e => !EventSchedule.HasEnded(e)).ToList();
+        }
+
         return events.Select(MapToDetailDto);
     }
 
-    public async Task<IEnumerable<EventDetailDto>> GetOrganizerEventsAsync(Guid organizerId)
+    public async Task<IEnumerable<EventDetailDto>> GetOrganizerEventsAsync(Guid organizerId, bool includeFinished = false)
     {
         var events = await _context.Events
             .Include(e => e.Organizer)
             .Include(e => e.EventType)
             .Include(e => e.Sections)
             .Include(e => e.Images)
-            .Where(e => e.OrganizerId == organizerId)
+            .Where(e => e.OrganizerId == organizerId && (includeFinished || e.Status != EventStatus.FINISHED))
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync();
+
+        if (!includeFinished)
+            events = events.Where(e => !EventSchedule.HasEnded(e)).ToList();
 
         return events.Select(MapToDetailDto);
     }
@@ -356,6 +377,9 @@ public class EventService : IEventService
             
         if (ev.Capacity <= 0) 
             throw new ValidationException("La capacidad debe ser mayor a cero.");
+
+        if (EventSchedule.HasEnded(ev))
+            throw new ValidationException("No se puede publicar un evento cuya fecha ya pasó. Reprográmalo primero.");
 
         if (!ev.Sections.Any())
             throw new ValidationException("El evento debe tener al menos una sección de boletos antes de publicarse.");

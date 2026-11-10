@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using EventTicketing.Api.Common.Helpers;
 using EventTicketing.Api.Infrastructure.Qr;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,12 +25,16 @@ public class BoletosController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> Detalle(Guid id)
     {
+        var usuarioId = User.GetUserId();
+        if (usuarioId is null) return Unauthorized();
+
         var boleto = await _db.Tickets
             .Include(t => t.Order)
             .Include(t => t.EventSection)
             .FirstOrDefaultAsync(b => b.Id == id);
 
-        if (boleto is null) return NotFound();
+        // Solo el dueño del boleto (o un admin) puede verlo; 404 para no revelar existencia
+        if (boleto is null || (boleto.Order.UsuarioId != usuarioId.Value && !User.IsAdminUser())) return NotFound();
 
         var png = _generadorQr.GenerarPng(boleto.CodigoQr);
         var qrBase64 = Convert.ToBase64String(png);
@@ -48,8 +53,11 @@ public class BoletosController : ControllerBase
     [HttpGet("{id}/qr.png")]
     public async Task<IActionResult> DescargarQr(Guid id)
     {
-        var boleto = await _db.Tickets.FindAsync(id);
-        if (boleto is null) return NotFound();
+        var usuarioId = User.GetUserId();
+        if (usuarioId is null) return Unauthorized();
+
+        var boleto = await _db.Tickets.Include(t => t.Order).FirstOrDefaultAsync(t => t.Id == id);
+        if (boleto is null || (boleto.Order.UsuarioId != usuarioId.Value && !User.IsAdminUser())) return NotFound();
 
         var png = _generadorQr.GenerarPng(boleto.CodigoQr);
         return File(png, "image/png");

@@ -21,7 +21,12 @@ public class TicketsController : ControllerBase
         _generadorQr = generadorQr;
     }
 
+    /// <summary>
+    /// Emisión directa de boletos SIN pasarela de pago (cortesías / taquilla). Solo administradores.
+    /// Los clientes compran con POST /api/ordenes + Mercado Pago.
+    /// </summary>
     [HttpPost("purchase")]
+    [Authorize(Roles = "ADMIN")]
     public async Task<ActionResult<OrderDto>> Purchase([FromBody] CreateOrderDto dto)
     {
         var userId = GetUserId();

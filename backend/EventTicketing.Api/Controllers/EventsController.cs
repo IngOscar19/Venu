@@ -35,7 +35,7 @@ public class EventsController : ControllerBase
 
     [HttpGet("mine")]
     [Authorize]
-    public async Task<ActionResult<IEnumerable<EventDetailDto>>> GetMyEvents()
+    public async Task<ActionResult<IEnumerable<EventDetailDto>>> GetMyEvents([FromQuery] bool includeFinished = false)
     {
         var isAdmin = User.IsInRole("ADMIN")
             || User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "ADMIN"
@@ -46,15 +46,15 @@ public class EventsController : ControllerBase
             var claim = User.Claims.FirstOrDefault(c => c.Type == "organizerId")?.Value;
             if (Guid.TryParse(claim, out var orgId))
             {
-                var orgEvents = await _eventService.GetOrganizerEventsAsync(orgId);
+                var orgEvents = await _eventService.GetOrganizerEventsAsync(orgId, includeFinished);
                 return Ok(orgEvents);
             }
-            var allEvents = await _eventService.GetAllAsync(null, null, null, null);
+            var allEvents = await _eventService.GetAllAsync(null, null, null, null, onlyPublic: false, includeFinished: includeFinished);
             return Ok(allEvents);
         }
 
         var organizerId = GetOrganizerIdFromClaims();
-        var result = await _eventService.GetOrganizerEventsAsync(organizerId);
+        var result = await _eventService.GetOrganizerEventsAsync(organizerId, includeFinished);
         return Ok(result);
     }
 

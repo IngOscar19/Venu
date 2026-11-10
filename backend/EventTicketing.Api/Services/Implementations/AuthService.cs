@@ -40,7 +40,11 @@ public class AuthService : IAuthService
             throw new ValidationException("El correo electrónico ya se encuentra registrado.");
         }
 
-        var role = string.IsNullOrWhiteSpace(dto.Role) ? "ORGANIZER" : dto.Role.ToUpper();
+        var role = string.IsNullOrWhiteSpace(dto.Role) ? "ORGANIZER" : dto.Role.Trim().ToUpper();
+
+        // El registro público nunca puede crear administradores ni roles desconocidos
+        if (role != "ORGANIZER" && role != "USER")
+            throw new ValidationException("Rol no permitido para el registro.");
 
         var user = new User
         {

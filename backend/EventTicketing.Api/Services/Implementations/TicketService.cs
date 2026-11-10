@@ -1,3 +1,4 @@
+using EventTicketing.Api.Common.Helpers;
 using System.Security.Cryptography;
 using EventTicketing.Api.Common.Exceptions;
 using EventTicketing.Api.Data;
@@ -36,6 +37,11 @@ public class TicketService : ITicketService
         if (ev.Status != EventStatus.PUBLISHED && ev.Status != EventStatus.RESCHEDULED)
         {
             throw new ValidationException("El evento no se encuentra disponible para la venta de boletos.");
+        }
+
+        if (EventSchedule.HasEnded(ev))
+        {
+            throw new ValidationException("Este evento ya finalizó.");
         }
 
         var sectionIds = dto.Items.Select(i => i.EventSectionId).Distinct().ToList();

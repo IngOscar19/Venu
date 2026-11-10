@@ -532,6 +532,10 @@ namespace EventTicketing.Api.Migrations
                     b.Property<Guid>("OrdenId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ReferenciaExterna")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrdenId")

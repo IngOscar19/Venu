@@ -120,6 +120,7 @@ builder.Services.AddScoped<IGeneradorQr, QrCoderGenerador>();
 builder.Services.AddScoped<GenerarBoletosService>();
 builder.Services.AddScoped<CrearOrdenCommand>();
 builder.Services.AddHostedService<ExpiracionOrdenesJob>();
+builder.Services.AddHostedService<FinalizacionEventosJob>();
 
 // Configuración y servicios de Mercado Pago
 var mpAccessToken = builder.Configuration["MercadoPago:AccessToken"]
