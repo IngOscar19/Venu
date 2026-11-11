@@ -77,6 +77,7 @@ public class GenerarBoletosService
                     TicketCode = Boleto.GenerateCode(),
                     CreatedAt = DateTime.UtcNow
                 };
+                _db.Tickets.Add(boleto);
                 orden.Tickets.Add(boleto);
             }
         }

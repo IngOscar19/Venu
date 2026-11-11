@@ -78,7 +78,7 @@ public class ConfirmarPagoCommand
             }
             else
             {
-                orden.Pago = new Pago
+                var nuevoPago = new Pago
                 {
                     OrdenId = orden.Id,
                     Monto = resultado.Monto ?? orden.Total,
@@ -87,6 +87,8 @@ public class ConfirmarPagoCommand
                     ReferenciaExterna = resultado.IdPagoExterno,
                     Fecha = DateTime.UtcNow
                 };
+                _db.Pagos.Add(nuevoPago);
+                orden.Pago = nuevoPago;
             }
 
             await _generarBoletos.GenerarDesdeOrdenAsync(orden);
@@ -112,7 +114,7 @@ public class ConfirmarPagoCommand
             }
             else
             {
-                orden.Pago = new Pago
+                var nuevoPago = new Pago
                 {
                     OrdenId = orden.Id,
                     Monto = resultado.Monto ?? orden.Total,
@@ -121,6 +123,8 @@ public class ConfirmarPagoCommand
                     ReferenciaExterna = resultado.IdPagoExterno,
                     Fecha = DateTime.UtcNow
                 };
+                _db.Pagos.Add(nuevoPago);
+                orden.Pago = nuevoPago;
             }
 
             await _db.SaveChangesAsync();

@@ -117,7 +117,11 @@ public class PagosController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al confirmar pago {PaymentId} para orden {OrdenId}", req.PaymentId, req.OrdenId);
-            return StatusCode(500, new { mensaje = "Error al consultar el pago con Mercado Pago." });
+            return StatusCode(500, new
+            {
+                mensaje = "Error al consultar el pago con Mercado Pago.",
+                detalle = ex.InnerException?.Message ?? ex.Message
+            });
         }
     }
 

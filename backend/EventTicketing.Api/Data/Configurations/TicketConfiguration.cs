@@ -12,6 +12,7 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.ToTable("tickets");
 
         builder.HasKey(t => t.Id);
+        builder.Property(t => t.Id).ValueGeneratedNever();
 
         // TicketCode es el valor que va en el QR — debe ser único
         builder.Property(t => t.TicketCode)

@@ -76,6 +76,7 @@ public class ApplicationDbContext : DbContext
         {
             b.ToTable("Pagos");
             b.HasKey(p => p.Id);
+            b.Property(p => p.Id).ValueGeneratedNever();
             b.Property(p => p.Monto).IsRequired().HasColumnType("numeric(10,2)");
             b.Property(p => p.MetodoPago).IsRequired().HasMaxLength(50);
             b.Property(p => p.Estado).IsRequired().HasMaxLength(50);
