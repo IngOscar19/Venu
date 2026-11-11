@@ -202,7 +202,18 @@ class _PagoWebviewScreenState extends State<PagoWebviewScreen> {
               ),
             ),
             // Verifica el pago contra el servidor; no marca nada como aprobado por sí solo
-            onPressed: () => _irAResultado('pending'),
+            onPressed: () async {
+              String? paymentId;
+              try {
+                final currentUrl = await _controller.currentUrl();
+                if (currentUrl != null) {
+                  final uri = Uri.tryParse(currentUrl);
+                  paymentId = uri?.queryParameters['payment_id'] ??
+                      uri?.queryParameters['collection_id'];
+                }
+              } catch (_) {}
+              _irAResultado('pending', paymentId: paymentId);
+            },
           ),
           const SizedBox(width: 8),
         ],

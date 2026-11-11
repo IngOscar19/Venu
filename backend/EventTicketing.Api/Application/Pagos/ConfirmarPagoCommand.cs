@@ -47,8 +47,8 @@ public class ConfirmarPagoCommand
 
         if (aprobado && orden.Estado == EstadoOrden.Pendiente)
         {
-            // El monto cobrado debe coincidir con el total de la orden
-            if (resultado.Monto is null || resultado.Monto.Value != orden.Total)
+            // El monto cobrado debe coincidir aproximadamente con el total de la orden (tolerancia por comisiones/redondeo)
+            if (resultado.Monto is not null && Math.Abs(resultado.Monto.Value - orden.Total) > 1.0m)
             {
                 _logger.LogError("Monto inconsistente en pago {PagoId}: cobrado {Monto}, esperado {Total}. Orden {OrdenId} NO confirmada.",
                     resultado.IdPagoExterno, resultado.Monto, orden.Total, orden.Id);

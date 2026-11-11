@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using MercadoPago.Config;
 using EventTicketing.Api.Application.Pagos;
 using EventTicketing.Api.Common.Helpers;
 using EventTicketing.Api.Domain.Enums;
@@ -111,11 +112,19 @@ public class PagosController : ControllerBase
 
     private async Task<ResultadoPago?> BuscarPagoPorOrdenAsync(Guid ordenId)
     {
-        var token = _config["MercadoPago:AccessToken"]
-            ?? Environment.GetEnvironmentVariable("MERCADOPAGO_ACCESS_TOKEN")
-            ?? Environment.GetEnvironmentVariable("MercadoPago__AccessToken");
+        var token = _config["MercadoPago:AccessToken"];
+        if (string.IsNullOrWhiteSpace(token))
+            token = Environment.GetEnvironmentVariable("MERCADOPAGO_ACCESS_TOKEN");
+        if (string.IsNullOrWhiteSpace(token))
+            token = Environment.GetEnvironmentVariable("MercadoPago__AccessToken");
+        if (string.IsNullOrWhiteSpace(token))
+            token = MercadoPagoConfig.AccessToken;
 
-        if (string.IsNullOrWhiteSpace(token)) return null;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            _logger.LogWarning("No se encontró token de Mercado Pago para buscar pagos de orden {OrdenId}", ordenId);
+            return null;
+        }
 
         try
         {
@@ -124,7 +133,12 @@ public class PagosController : ControllerBase
             var url = $"https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&external_reference={ordenId}&limit=1";
 
             var resp = await client.GetAsync(url);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                var err = await resp.Content.ReadAsStringAsync();
+                _logger.LogWarning("Búsqueda en MP falló ({Code}): {Error}", resp.StatusCode, err);
+                return null;
+            }
 
             var json = await resp.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
@@ -137,7 +151,14 @@ public class PagosController : ControllerBase
                 var monto = p.TryGetProperty("transaction_amount", out var ta) ? ta.GetDecimal() : (decimal?)null;
                 var metodo = p.TryGetProperty("payment_method_id", out var pm) ? pm.GetString() : null;
 
+                _logger.LogInformation("Pago encontrado en MP para orden {OrdenId}: id={PagoId}, status={Status}, monto={Monto}",
+                    ordenId, id, status, monto);
+
                 return new ResultadoPago(status, extRef ?? ordenId.ToString(), id, monto, metodo);
+            }
+            else
+            {
+                _logger.LogInformation("No se encontraron pagos en MP para external_reference={OrdenId}", ordenId);
             }
         }
         catch (Exception ex)

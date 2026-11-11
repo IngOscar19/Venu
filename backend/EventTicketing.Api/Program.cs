@@ -123,9 +123,12 @@ builder.Services.AddHostedService<ExpiracionOrdenesJob>();
 builder.Services.AddHostedService<FinalizacionEventosJob>();
 
 // Configuración y servicios de Mercado Pago
-var mpAccessToken = builder.Configuration["MercadoPago:AccessToken"]
-    ?? Environment.GetEnvironmentVariable("MERCADOPAGO_ACCESS_TOKEN")
-    ?? Environment.GetEnvironmentVariable("MercadoPago__AccessToken");
+var mpAccessToken = builder.Configuration["MercadoPago:AccessToken"];
+if (string.IsNullOrWhiteSpace(mpAccessToken))
+    mpAccessToken = Environment.GetEnvironmentVariable("MERCADOPAGO_ACCESS_TOKEN");
+if (string.IsNullOrWhiteSpace(mpAccessToken))
+    mpAccessToken = Environment.GetEnvironmentVariable("MercadoPago__AccessToken");
+
 if (!string.IsNullOrWhiteSpace(mpAccessToken))
 {
     MercadoPagoConfig.AccessToken = mpAccessToken;

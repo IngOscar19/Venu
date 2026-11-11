@@ -47,11 +47,13 @@ class PagosRepository {
       if (paymentId != null && paymentId.isNotEmpty) {
         payload['paymentId'] = paymentId;
       }
+      debugPrint('[PagosRepository] Solicitando confirmación de pago: $payload');
       final response = await _apiClient.dio.post(
         ApiEndpoints.confirmarPago,
         data: payload,
       );
       final data = response.data;
+      debugPrint('[PagosRepository] Respuesta confirmarPago: $data');
       return data is Map && data['estado'] == 'approved';
     } catch (e) {
       debugPrint('[PagosRepository] Error al confirmar pago directamente: $e');
