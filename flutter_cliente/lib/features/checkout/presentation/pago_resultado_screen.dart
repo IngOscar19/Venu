@@ -83,13 +83,16 @@ class _PagoResultadoScreenState extends State<PagoResultadoScreen> {
       }
 
       final orden = await _ordenesRepo.getOrden(widget.ordenId);
+      debugPrint('[PagoResultado] getOrden -> id: ${orden.id}, estado: "${orden.estado}", estaPagada: ${orden.estaPagada}');
       if (!mounted) return;
       setState(() {
         _orden = orden;
         _errorMessage = null;
       });
 
-      if (orden.estaPendiente && _intentos < _maxIntentos) {
+      if (orden.estaPagada) {
+        _pollTimer?.cancel();
+      } else if (orden.estaPendiente && _intentos < _maxIntentos) {
         _intentos++;
         _pollTimer = Timer(
           const Duration(seconds: 4),

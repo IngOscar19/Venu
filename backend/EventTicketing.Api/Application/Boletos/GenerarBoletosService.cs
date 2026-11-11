@@ -28,6 +28,18 @@ public class GenerarBoletosService
         var nombre = $"{orden.User?.FirstName} {orden.User?.LastName}".Trim();
         var correo = orden.User?.Email ?? string.Empty;
 
+        if (string.IsNullOrWhiteSpace(correo) || string.IsNullOrWhiteSpace(nombre))
+        {
+            var user = await _db.Users.FindAsync(orden.UsuarioId);
+            if (user != null)
+            {
+                nombre = $"{user.FirstName} {user.LastName}".Trim();
+                correo = user.Email;
+            }
+        }
+        if (string.IsNullOrWhiteSpace(nombre)) nombre = "Asistente";
+        if (string.IsNullOrWhiteSpace(correo)) correo = "asistente@venu.com";
+
         foreach (var detalle in orden.Detalles)
         {
             // TipoBoleto.Id == EventSection.Id (ver TiposBoletoSync); si no, se busca por nombre

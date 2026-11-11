@@ -50,6 +50,7 @@ public class Order
         get => Estado switch
         {
             EstadoOrden.Pendiente => OrderStatus.PENDING,
+            EstadoOrden.Pagada => OrderStatus.COMPLETED,
             EstadoOrden.Completada => OrderStatus.COMPLETED,
             EstadoOrden.Cancelada => OrderStatus.CANCELLED,
             EstadoOrden.Expirada => OrderStatus.EXPIRED,
@@ -58,7 +59,7 @@ public class Order
         set => Estado = value switch
         {
             OrderStatus.PENDING => EstadoOrden.Pendiente,
-            OrderStatus.COMPLETED => EstadoOrden.Completada,
+            OrderStatus.COMPLETED => EstadoOrden.Pagada,
             OrderStatus.CANCELLED => EstadoOrden.Cancelada,
             OrderStatus.EXPIRED => EstadoOrden.Expirada,
             _ => EstadoOrden.Pendiente

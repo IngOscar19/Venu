@@ -41,7 +41,16 @@ public class ConfirmarPagoCommand
         if (orden is null) return;
 
         // Idempotencia: este pago ya fue registrado
-        if (orden.Pago is not null && orden.Pago.ReferenciaExterna == resultado.IdPagoExterno) return;
+        if (orden.Pago is not null && orden.Pago.ReferenciaExterna == resultado.IdPagoExterno)
+        {
+            if (orden.Estado != EstadoOrden.Pagada || orden.Tickets.Count == 0)
+            {
+                orden.Estado = EstadoOrden.Pagada;
+                await _generarBoletos.GenerarDesdeOrdenAsync(orden);
+                await _db.SaveChangesAsync();
+            }
+            return;
+        }
 
         var aprobado = resultado.Estado == "approved";
 

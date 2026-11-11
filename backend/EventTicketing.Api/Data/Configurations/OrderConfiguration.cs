@@ -39,11 +39,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(20)
             .HasConversion(
                 e => e == EstadoOrden.Pendiente ? "PENDING"
-                   : e == EstadoOrden.Completada ? "COMPLETED"
+                   : e == EstadoOrden.Pagada || e == EstadoOrden.Completada ? "COMPLETED"
                    : e == EstadoOrden.Cancelada ? "CANCELLED"
                    : e == EstadoOrden.Expirada ? "EXPIRED"
                    : "PENDING",
-                s => s == "COMPLETED" || s == "Completada" ? EstadoOrden.Completada
+                s => s == "COMPLETED" || s == "Completada" || s == "PAID" || s == "Pagada" ? EstadoOrden.Pagada
                    : s == "CANCELLED" || s == "Cancelada" ? EstadoOrden.Cancelada
                    : s == "EXPIRED" || s == "Expirada" ? EstadoOrden.Expirada
                    : EstadoOrden.Pendiente)
