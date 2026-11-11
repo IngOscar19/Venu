@@ -46,8 +46,23 @@ public class GenerarBoletosService
             var seccion = secciones.FirstOrDefault(s => s.Id == detalle.TipoBoletoId)
                 ?? secciones.FirstOrDefault(s => s.Name == detalle.TipoBoleto?.Nombre)
                 ?? secciones.FirstOrDefault();
+
             if (seccion is null)
-                throw new InvalidOperationException($"El evento {orden.EventId} no tiene secciones para emitir boletos.");
+            {
+                seccion = new EventSection
+                {
+                    Id = detalle.TipoBoletoId != Guid.Empty ? detalle.TipoBoletoId : Guid.NewGuid(),
+                    EventId = orden.EventId,
+                    Name = detalle.TipoBoleto?.Nombre ?? "General",
+                    Description = "Sección General",
+                    Capacity = 1000,
+                    BasePrice = detalle.PrecioUnitario,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.EventSections.Add(seccion);
+                secciones.Add(seccion);
+            }
 
             for (var i = 0; i < detalle.Cantidad; i++)
             {
@@ -63,7 +78,6 @@ public class GenerarBoletosService
                     CreatedAt = DateTime.UtcNow
                 };
                 orden.Tickets.Add(boleto);
-                _db.Tickets.Add(boleto);
             }
         }
     }

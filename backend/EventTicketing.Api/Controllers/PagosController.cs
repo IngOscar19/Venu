@@ -101,7 +101,18 @@ public class PagosController : ControllerBase
             }
 
             await _confirmarPago.EjecutarAsync(resultado);
-            return Ok(new { estado = resultado.Estado });
+
+            var ordenActualizada = await _db.Ordenes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Id == req.OrdenId);
+
+            var pagada = ordenActualizada?.Estado == EstadoOrden.Pagada;
+            return Ok(new
+            {
+                estado = pagada ? "approved" : (resultado.Estado ?? "pending"),
+                ordenEstado = ordenActualizada?.Estado.ToString(),
+                pagada = pagada
+            });
         }
         catch (Exception ex)
         {
