@@ -79,6 +79,7 @@ class EventTicketingApp extends StatelessWidget {
               builder: (_) => PagoResultadoScreen(
                 ordenId: args?['ordenId'] as String? ?? '',
                 estadoInicial: args?['estadoInicial'] as String?,
+                paymentId: args?['paymentId'] as String?,
               ),
             );
 

@@ -8,15 +8,18 @@ import '../../../shared/utils/formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../data/ordenes_repository.dart';
+import '../data/pagos_repository.dart';
 
 class PagoResultadoScreen extends StatefulWidget {
   final String ordenId;
   final String? estadoInicial;
+  final String? paymentId;
 
   const PagoResultadoScreen({
     super.key,
     required this.ordenId,
     this.estadoInicial,
+    this.paymentId,
   });
 
   @override
@@ -25,6 +28,7 @@ class PagoResultadoScreen extends StatefulWidget {
 
 class _PagoResultadoScreenState extends State<PagoResultadoScreen> {
   final OrdenesRepository _ordenesRepo = OrdenesRepository();
+  final PagosRepository _pagosRepo = PagosRepository();
   Orden? _orden;
   bool _isLoading = true;
   String? _errorMessage;
@@ -70,6 +74,14 @@ class _PagoResultadoScreenState extends State<PagoResultadoScreen> {
     }
 
     try {
+      // Si la orden aún no está pagada, intentamos confirmarla activamente con Mercado Pago
+      if (_orden == null || _orden!.estaPendiente) {
+        await _pagosRepo.confirmarPago(
+          ordenId: widget.ordenId,
+          paymentId: widget.paymentId,
+        );
+      }
+
       final orden = await _ordenesRepo.getOrden(widget.ordenId);
       if (!mounted) return;
       setState(() {

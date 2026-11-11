@@ -96,12 +96,14 @@ class _PagoWebviewScreenState extends State<PagoWebviewScreen> {
         uri?.queryParameters['collection_status'] ??
         uri?.queryParameters['estado'] ??
         'pending';
-    _irAResultado(estadoParam);
+    final paymentId = uri?.queryParameters['payment_id'] ??
+        uri?.queryParameters['collection_id'];
+    _irAResultado(estadoParam, paymentId: paymentId);
   }
 
-  /// El resultado real SIEMPRE se confirma contra el backend (webhook de Mercado Pago);
+  /// El resultado real se confirma contra el backend (por payment_id devuelto por MP o por su webhook);
   /// el parámetro de la URL es solo informativo.
-  void _irAResultado(String estado) {
+  void _irAResultado(String estado, {String? paymentId}) {
     if (_navegado || !mounted) return;
     _navegado = true;
     Navigator.of(context).pushReplacementNamed(
@@ -109,6 +111,7 @@ class _PagoWebviewScreenState extends State<PagoWebviewScreen> {
       arguments: {
         'ordenId': widget.ordenId,
         'estadoInicial': estado,
+        'paymentId': paymentId,
       },
     );
   }

@@ -22,6 +22,7 @@ class ApiEndpoints {
   static String pagarOrden(String id) => '/api/ordenes/$id/pagar';
   static String cancelarOrden(String id) => '/api/ordenes/$id/cancelar';
   static const String preferenciaPago = '/api/pagos/preferencia';
+  static const String confirmarPago = '/api/pagos/confirmar';
   static const String misBoletos = '/api/usuarios/me/boletos';
   static String boletoDetalle(String id) => '/api/boletos/$id';
 

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 
@@ -32,6 +33,29 @@ class PagosRepository {
           ? data
           : (data is Map ? (data['mensaje'] ?? data['message'])?.toString() : null);
       throw Exception(msg ?? 'No se pudo iniciar el pago. Intenta de nuevo.');
+    }
+  }
+
+  /// Confirma directamente un pago con el ID de transacción retornado por Mercado Pago.
+  /// Evita depender exclusivamente del webhook si este sufre latencia o retrasos.
+  Future<bool> confirmarPago({
+    required String ordenId,
+    String? paymentId,
+  }) async {
+    try {
+      final payload = <String, dynamic>{'ordenId': ordenId};
+      if (paymentId != null && paymentId.isNotEmpty) {
+        payload['paymentId'] = paymentId;
+      }
+      final response = await _apiClient.dio.post(
+        ApiEndpoints.confirmarPago,
+        data: payload,
+      );
+      final data = response.data;
+      return data is Map && data['estado'] == 'approved';
+    } catch (e) {
+      debugPrint('[PagosRepository] Error al confirmar pago directamente: $e');
+      return false;
     }
   }
 }
