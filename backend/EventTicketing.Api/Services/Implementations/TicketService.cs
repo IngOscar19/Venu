@@ -1,3 +1,4 @@
+using EventTicketing.Api.Application.Boletos;
 using EventTicketing.Api.Common.Helpers;
 using System.Security.Cryptography;
 using EventTicketing.Api.Common.Exceptions;
@@ -15,11 +16,16 @@ public class TicketService : ITicketService
 {
     private readonly ApplicationDbContext _context;
     private readonly IGeneradorQr _generadorQr;
+    private readonly GenerarBoletosService _generarBoletos;
 
-    public TicketService(ApplicationDbContext context, IGeneradorQr generadorQr)
+    public TicketService(
+        ApplicationDbContext context,
+        IGeneradorQr generadorQr,
+        GenerarBoletosService generarBoletos)
     {
         _context = context;
         _generadorQr = generadorQr;
+        _generarBoletos = generarBoletos;
     }
 
     public async Task<OrderDto> PurchaseTicketsAsync(Guid userId, CreateOrderDto dto)
@@ -150,6 +156,24 @@ public class TicketService : ITicketService
 
     public async Task<IEnumerable<TicketDto>> GetUserTicketsAsync(Guid userId)
     {
+        // Auto-recuperación: emite los boletos para órdenes que ya fueron pagadas
+        var ordenesPendientesDeEmision = await _context.Orders
+            .Include(o => o.Detalles).ThenInclude(d => d.TipoBoleto)
+            .Include(o => o.Tickets)
+            .Include(o => o.Pago)
+            .Where(o => o.UsuarioId == userId && (o.Estado == EstadoOrden.Pagada || o.Pago != null) && o.Tickets.Count == 0)
+            .ToListAsync();
+
+        if (ordenesPendientesDeEmision.Count > 0)
+        {
+            foreach (var ord in ordenesPendientesDeEmision)
+            {
+                ord.Estado = EstadoOrden.Pagada;
+                await _generarBoletos.GenerarDesdeOrdenAsync(ord);
+            }
+            await _context.SaveChangesAsync();
+        }
+
         var tickets = await _context.Tickets
             .Include(t => t.Order)
                 .ThenInclude(o => o.Event)
