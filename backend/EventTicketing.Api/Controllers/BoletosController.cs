@@ -85,7 +85,7 @@ public class MisBoletosController : ControllerBase
 
         var boletos = await _db.Tickets
             .Include(b => b.Order)
-            .Where(b => b.Order.UserId == usuarioId)
+            .Where(b => b.Order.UsuarioId == usuarioId)
             .Select(b => new
             {
                 b.Id,

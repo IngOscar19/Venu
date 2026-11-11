@@ -124,8 +124,8 @@ public class TicketService : ITicketService
             .Include(o => o.Event)
             .Include(o => o.Tickets)
                 .ThenInclude(t => t.EventSection)
-            .Where(o => o.UserId == userId)
-            .OrderByDescending(o => o.CreatedAt)
+            .Where(o => o.UsuarioId == userId)
+            .OrderByDescending(o => o.Fecha)
             .ToListAsync();
 
         return orders.Select(MapToOrderDto);
@@ -140,7 +140,7 @@ public class TicketService : ITicketService
             .FirstOrDefaultAsync(o => o.Id == orderId)
             ?? throw new KeyNotFoundException("La orden solicitada no existe.");
 
-        if (order.UserId != userId)
+        if (order.UsuarioId != userId)
         {
             throw new UnauthorizedAccessException("No tienes permisos para ver esta orden.");
         }
@@ -154,7 +154,7 @@ public class TicketService : ITicketService
             .Include(t => t.Order)
                 .ThenInclude(o => o.Event)
             .Include(t => t.EventSection)
-            .Where(t => t.Order.UserId == userId)
+            .Where(t => t.Order.UsuarioId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
@@ -170,7 +170,7 @@ public class TicketService : ITicketService
             .FirstOrDefaultAsync(t => t.Id == ticketId)
             ?? throw new KeyNotFoundException("El boleto solicitado no existe.");
 
-        if (ticket.Order.UserId != userId)
+        if (ticket.Order.UsuarioId != userId)
         {
             throw new UnauthorizedAccessException("No tienes permisos para ver este boleto.");
         }
