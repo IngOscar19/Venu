@@ -28,7 +28,8 @@ public record TicketDto(
     string EventName,
     DateTime EventStartDate,
     string VenueName,
-    string? QrBase64 = null
+    string? QrBase64 = null,
+    string? QrSeed = null
 );
 
 public record OrderDto(

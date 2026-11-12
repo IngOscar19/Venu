@@ -15,11 +15,13 @@ public class BoletosController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IGeneradorQr _generadorQr;
+    private readonly IDynamicQrService _dynamicQr;
 
-    public BoletosController(AppDbContext db, IGeneradorQr generadorQr)
+    public BoletosController(AppDbContext db, IGeneradorQr generadorQr, IDynamicQrService dynamicQr)
     {
         _db = db;
         _generadorQr = generadorQr;
+        _dynamicQr = dynamicQr;
     }
 
     [HttpGet("{id}")]
@@ -45,7 +47,8 @@ public class BoletosController : ControllerBase
             boleto.EventoId,
             Estado = boleto.Estado.ToString(),
             boleto.FechaEmision,
-            QrBase64 = qrBase64 // Flutter lo pinta con Image.memory(base64Decode(...))
+            QrBase64 = qrBase64,
+            QrSeed = _dynamicQr.GenerarSeed(boleto.Id, boleto.TicketCode)
         });
     }
 

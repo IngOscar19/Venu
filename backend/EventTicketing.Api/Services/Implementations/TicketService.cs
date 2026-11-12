@@ -17,15 +17,18 @@ public class TicketService : ITicketService
     private readonly ApplicationDbContext _context;
     private readonly IGeneradorQr _generadorQr;
     private readonly GenerarBoletosService _generarBoletos;
+    private readonly IDynamicQrService _dynamicQr;
 
     public TicketService(
         ApplicationDbContext context,
         IGeneradorQr generadorQr,
-        GenerarBoletosService generarBoletos)
+        GenerarBoletosService generarBoletos,
+        IDynamicQrService dynamicQr)
     {
         _context = context;
         _generadorQr = generadorQr;
         _generarBoletos = generarBoletos;
+        _dynamicQr = dynamicQr;
     }
 
     public async Task<OrderDto> PurchaseTicketsAsync(Guid userId, CreateOrderDto dto)
@@ -218,7 +221,7 @@ public class TicketService : ITicketService
         return $"TKT-{hex}";
     }
 
-    private static OrderDto MapToOrderDto(Order o)
+    private OrderDto MapToOrderDto(Order o)
     {
         return new OrderDto(
             o.Id,
@@ -244,14 +247,15 @@ public class TicketService : ITicketService
                 o.Event?.Name ?? string.Empty,
                 o.Event?.StartDate ?? DateTime.MinValue,
                 o.Event?.VenueName ?? string.Empty,
-                null
+                null,
+                _dynamicQr.GenerarSeed(t.Id, t.TicketCode)
             )).ToList()
         );
     }
 
-    private static TicketDto MapToTicketDto(Ticket t) => MapToTicketDto(t, null);
+    private TicketDto MapToTicketDto(Ticket t) => MapToTicketDto(t, null);
 
-    private static TicketDto MapToTicketDto(Ticket t, string? qrBase64)
+    private TicketDto MapToTicketDto(Ticket t, string? qrBase64)
     {
         return new TicketDto(
             t.Id,
@@ -268,7 +272,8 @@ public class TicketService : ITicketService
             t.Order?.Event?.Name ?? string.Empty,
             t.Order?.Event?.StartDate ?? DateTime.MinValue,
             t.Order?.Event?.VenueName ?? string.Empty,
-            qrBase64
+            qrBase64,
+            _dynamicQr.GenerarSeed(t.Id, t.TicketCode)
         );
     }
 }

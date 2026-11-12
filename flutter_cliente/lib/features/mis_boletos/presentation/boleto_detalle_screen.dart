@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 import '../../../core/theme/broncos_theme.dart';
 import '../../../models/boleto.dart';
+import '../../../shared/utils/dynamic_qr_helper.dart';
 import '../../../shared/utils/formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 
-class BoletoDetalleScreen extends StatelessWidget {
+class BoletoDetalleScreen extends StatefulWidget {
   final Boleto boleto;
 
   const BoletoDetalleScreen({
@@ -16,8 +19,90 @@ class BoletoDetalleScreen extends StatelessWidget {
   });
 
   @override
+  State<BoletoDetalleScreen> createState() => _BoletoDetalleScreenState();
+}
+
+class _BoletoDetalleScreenState extends State<BoletoDetalleScreen> with SingleTickerProviderStateMixin {
+  Timer? _timer;
+  late String _dynamicPayload;
+  double _progreso = 1.0;
+  int _segundosRestantes = DynamicQrHelper.ventanaSegundos;
+  double? _brilloOriginal;
+
+  @override
+  void initState() {
+    super.initState();
+    _actualizarPayload();
+    _iniciarTemporizador();
+    _maximizarBrillo();
+  }
+
+  void _actualizarPayload() {
+    final payload = DynamicQrHelper.generarPayload(
+      ticketCode: widget.boleto.codigoQr,
+      seedHex: widget.boleto.qrSeed ?? '',
+    );
+    if (mounted) {
+      setState(() {
+        _dynamicPayload = payload;
+        _progreso = DynamicQrHelper.calcularProgresoRestante();
+        _segundosRestantes = DynamicQrHelper.segundosRestantes();
+      });
+    } else {
+      _dynamicPayload = payload;
+    }
+  }
+
+  void _iniciarTemporizador() {
+    _timer?.cancel();
+    // Actualizar cada 250ms para un progreso fluido y rotación exacta en el segundo 0
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      final nuevoSegundos = DynamicQrHelper.segundosRestantes();
+      final nuevoProgreso = DynamicQrHelper.calcularProgresoRestante();
+
+      // Si cambió la ventana de tiempo, regeneramos la firma
+      if (nuevoSegundos > _segundosRestantes || _segundosRestantes == DynamicQrHelper.ventanaSegundos) {
+        _actualizarPayload();
+      } else {
+        if (mounted) {
+          setState(() {
+            _progreso = nuevoProgreso;
+            _segundosRestantes = nuevoSegundos;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _maximizarBrillo() async {
+    try {
+      _brilloOriginal = await ScreenBrightness().application;
+      await ScreenBrightness().setApplicationScreenBrightness(1.0);
+    } catch (_) {
+      // Ignorar en plataformas no compatibles (ej. macOS/desktop)
+    }
+  }
+
+  Future<void> _restaurarBrillo() async {
+    try {
+      if (_brilloOriginal != null) {
+        await ScreenBrightness().setApplicationScreenBrightness(_brilloOriginal!);
+      } else {
+        await ScreenBrightness().resetApplicationScreenBrightness();
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _restaurarBrillo();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bool esValido = boleto.esValido;
+    final bool esValido = widget.boleto.esValido;
 
     return Scaffold(
       backgroundColor: BroncosColors.background,
@@ -82,7 +167,7 @@ class BoletoDetalleScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    esValido ? 'Boleto válido y activo' : boleto.estado.toUpperCase(),
+                                    esValido ? 'Boleto válido y activo' : widget.boleto.estado.toUpperCase(),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
@@ -95,7 +180,7 @@ class BoletoDetalleScreen extends StatelessWidget {
                             const SizedBox(height: 14),
 
                             Text(
-                              boleto.eventoNombre,
+                              widget.boleto.eventoNombre,
                               textAlign: TextAlign.center,
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 20,
@@ -106,7 +191,7 @@ class BoletoDetalleScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 16),
 
-                            // Detail Grid (Fecha, Sección, Asistente)
+                            // Detail Grid (Fecha, Sección, Recinto)
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
@@ -119,22 +204,22 @@ class BoletoDetalleScreen extends StatelessWidget {
                                   Expanded(
                                     child: _buildPassMeta(
                                       label: 'FECHA',
-                                      value: Formatters.formatDate(boleto.eventStartDate ?? boleto.fechaEmision),
+                                      value: Formatters.formatDate(widget.boleto.eventStartDate ?? widget.boleto.fechaEmision),
                                     ),
                                   ),
                                   Container(height: 30, width: 1, color: const Color(0xFFE2E8F0)),
                                   Expanded(
                                     child: _buildPassMeta(
                                       label: 'TIPO',
-                                      value: boleto.tipoBoletoNombre ?? 'General',
+                                      value: widget.boleto.tipoBoletoNombre ?? 'General',
                                     ),
                                   ),
-                                  if (boleto.venueName != null) ...[
+                                  if (widget.boleto.venueName != null) ...[
                                     Container(height: 30, width: 1, color: const Color(0xFFE2E8F0)),
                                     Expanded(
                                       child: _buildPassMeta(
                                         label: 'RECINTO',
-                                        value: boleto.venueName!,
+                                        value: widget.boleto.venueName!,
                                       ),
                                     ),
                                   ],
@@ -148,11 +233,38 @@ class BoletoDetalleScreen extends StatelessWidget {
                       // Ticket Tear Line with side notches
                       _buildTicketTearLine(),
 
-                      // Lower Section: QR Code & Validation
+                      // Lower Section: Dynamic QR Code & Anti-Scalping
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                         child: Column(
                           children: [
+                            // Security Badge (SafeTix Venu)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: const Color(0xFFBFDBFE)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.verified_user_rounded, size: 14, color: Color(0xFF2563EB)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Código dinámico anticaptura',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF1D4ED8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // QR Container
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
@@ -166,39 +278,85 @@ class BoletoDetalleScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              child: QrImageView(
-                                data: boleto.codigoQr.isNotEmpty ? boleto.codigoQr : boleto.id,
-                                version: QrVersions.auto,
-                                size: 190,
-                                eyeStyle: const QrEyeStyle(
-                                  eyeShape: QrEyeShape.square,
-                                  color: BroncosColors.navyDark,
-                                ),
-                                dataModuleStyle: const QrDataModuleStyle(
-                                  dataModuleShape: QrDataModuleShape.square,
-                                  color: BroncosColors.navyDark,
-                                ),
+                              child: Column(
+                                children: [
+                                  QrImageView(
+                                    data: _dynamicPayload.isNotEmpty ? _dynamicPayload : widget.boleto.id,
+                                    version: QrVersions.auto,
+                                    size: 190,
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: BroncosColors.navyDark,
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape: QrDataModuleShape.square,
+                                      color: BroncosColors.navyDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // Rolling Progress Bar (SafeTix dynamic countdown)
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: SizedBox(
+                                      height: 6,
+                                      width: 190,
+                                      child: LinearProgressIndicator(
+                                        value: _progreso,
+                                        backgroundColor: const Color(0xFFE2E8F0),
+                                        valueColor: const AlwaysStoppedAnimation<Color>(BroncosColors.sunsetOrange),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.sync_rounded, size: 12, color: BroncosColors.textMuted),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Se actualiza en ${_segundosRestantes}s',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: BroncosColors.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
 
                             Text(
-                              'Presenta este código en el acceso del recinto',
+                              'Presenta este código en vivo desde la app al ingresar.',
+                              textAlign: TextAlign.center,
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
                                 color: BroncosColors.textSecondary,
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 4),
+                            Text(
+                              'No se admiten capturas de pantalla ni fotos impresas.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: BroncosColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
 
                             // Ticket ID with copy button
                             InkWell(
                               onTap: () {
-                                Clipboard.setData(ClipboardData(text: boleto.id));
+                                Clipboard.setData(ClipboardData(text: widget.boleto.id));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Código de boleto copiado al portapapeles.'),
+                                    content: Text('ID de boleto copiado al portapapeles.'),
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
@@ -214,7 +372,7 @@ class BoletoDetalleScreen extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'ID: ${boleto.id.length > 16 ? '${boleto.id.substring(0, 16)}...' : boleto.id}',
+                                      'ID: ${widget.boleto.id.length > 16 ? '${widget.boleto.id.substring(0, 16)}...' : widget.boleto.id}',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
@@ -236,20 +394,6 @@ class BoletoDetalleScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Action Buttons
-                CustomButton(
-                  text: 'Compartir entrada',
-                  icon: Icons.share_outlined,
-                  isOutlined: true,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Pase digital listo para compartir.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
                 CustomButton(
                   text: 'Volver a mis boletos',
                   onPressed: () => Navigator.of(context).pop(),

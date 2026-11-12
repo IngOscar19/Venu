@@ -15,6 +15,7 @@ class Boleto {
   final double precio;
   final String? venueName;
   final DateTime? eventStartDate;
+  final String? qrSeed;
 
   Boleto({
     required this.id,
@@ -31,6 +32,7 @@ class Boleto {
     this.precio = 0.0,
     this.venueName,
     this.eventStartDate,
+    this.qrSeed,
   });
 
   bool get esValido => estado.toLowerCase() == 'valido' || estado.toLowerCase() == 'valid';
@@ -62,6 +64,7 @@ class Boleto {
       eventStartDate: json['eventStartDate'] != null
           ? DateTime.tryParse(json['eventStartDate'].toString())
           : null,
+      qrSeed: json['qrSeed']?.toString(),
     );
   }
 
@@ -81,6 +84,7 @@ class Boleto {
       'precio': precio,
       'venueName': venueName,
       'eventStartDate': eventStartDate?.toIso8601String(),
+      'qrSeed': qrSeed,
     };
   }
 }

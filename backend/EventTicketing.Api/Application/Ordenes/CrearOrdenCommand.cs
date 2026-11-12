@@ -7,8 +7,9 @@ namespace EventTicketing.Api.Application.Ordenes;
 
 public class CrearOrdenCommand
 {
-    public const int MaxBoletosPorTipo = 10;
-    public const int MaxBoletosPorOrden = 20;
+    public const int MaxBoletosPorUsuarioYEvento = 4; // Límite acumulativo anti-reventa por persona y evento
+    public const int MaxBoletosPorTipo = 4;
+    public const int MaxBoletosPorOrden = 4;
     private readonly AppDbContext _db;
 
     public CrearOrdenCommand(AppDbContext db) => _db = db;
@@ -25,9 +26,9 @@ public class CrearOrdenCommand
             .ToList();
 
         if (consolidados.Any(i => i.Cantidad <= 0 || i.Cantidad > MaxBoletosPorTipo))
-            return ResultadoCrearOrden.Invalido($"La cantidad por tipo de boleto debe estar entre 1 y {MaxBoletosPorTipo}.");
+            return ResultadoCrearOrden.Invalido($"Para evitar la reventa, la cantidad por tipo de boleto debe ser entre 1 y {MaxBoletosPorTipo}.");
         if (consolidados.Sum(i => i.Cantidad) > MaxBoletosPorOrden)
-            return ResultadoCrearOrden.Invalido($"Máximo {MaxBoletosPorOrden} boletos por orden.");
+            return ResultadoCrearOrden.Invalido($"Para evitar la reventa, el límite es de máximo {MaxBoletosPorOrden} boletos por orden.");
 
         // Los tipos de boleto deben existir y pertenecer a un único evento vigente
         var primerId = consolidados[0].TipoBoletoId;
@@ -44,6 +45,30 @@ public class CrearOrdenCommand
             return ResultadoCrearOrden.Invalido("El evento no está disponible para la venta de boletos.");
         if (EventSchedule.HasEnded(evento))
             return ResultadoCrearOrden.Invalido("Este evento ya finalizó y no admite compras.");
+
+        // ── Límite acumulativo anti-reventa por usuario y evento ──────────────────
+        var boletosConfirmados = await _db.Tickets
+            .Include(t => t.Order)
+            .Where(t => t.Order.UsuarioId == usuarioId && t.Order.EventId == evento.Id && t.Status != TicketStatus.CANCELLED)
+            .CountAsync();
+
+        // Considerar órdenes pendientes no expiradas (dentro de los 15 minutos de reserva)
+        var vigenciaMinima = DateTime.UtcNow.AddMinutes(-15);
+        var boletosEnProceso = await _db.OrdenDetalles
+            .Include(d => d.Orden)
+            .Where(d => d.Orden.UsuarioId == usuarioId && d.Orden.EventId == evento.Id && d.Orden.Estado == EstadoOrden.Pendiente && d.Orden.Fecha >= vigenciaMinima)
+            .SumAsync(d => d.Cantidad);
+
+        var cantidadSolicitada = consolidados.Sum(x => x.Cantidad);
+        if (boletosConfirmados + boletosEnProceso + cantidadSolicitada > MaxBoletosPorUsuarioYEvento)
+        {
+            var disponiblesParaUsuario = Math.Max(0, MaxBoletosPorUsuarioYEvento - (boletosConfirmados + boletosEnProceso));
+            var mensaje = disponiblesParaUsuario > 0
+                ? $"Para evitar la reventa, el límite acumulativo por persona es de {MaxBoletosPorUsuarioYEvento} boletos. Ya cuentas con {boletosConfirmados + boletosEnProceso} boletos asociados a este evento; solo puedes adquirir {disponiblesParaUsuario} más."
+                : $"Has alcanzado el límite máximo de {MaxBoletosPorUsuarioYEvento} boletos permitidos por persona para este evento.";
+
+            return ResultadoCrearOrden.Invalido(mensaje);
+        }
 
         await TiposBoletoSync.EnsureAsync(_db, evento.Id);
 
