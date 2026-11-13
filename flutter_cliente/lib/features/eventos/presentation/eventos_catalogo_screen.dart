@@ -32,6 +32,7 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
     {'id': 'todos', 'label': 'Todos', 'icon': Icons.grid_view_rounded},
     {'id': 'concierto', 'label': 'Conciertos', 'icon': Icons.music_note_rounded},
     {'id': 'festival', 'label': 'Festivales', 'icon': Icons.festival_rounded},
+    {'id': 'feria', 'label': 'Ferias', 'icon': Icons.celebration_rounded},
     {'id': 'teatro', 'label': 'Teatro', 'icon': Icons.theater_comedy_rounded},
     {'id': 'deporte', 'label': 'Deportes', 'icon': Icons.sports_soccer_rounded},
     {'id': 'conferencia', 'label': 'Conferencias', 'icon': Icons.groups_rounded},
@@ -114,43 +115,51 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
     final cat = categoryId.toLowerCase().trim();
     final typeName = (ev.eventTypeName ?? '').toLowerCase().trim();
 
-    // 1. Coincidencia por tipo de evento asignado en la base de datos
-    if (typeName.isNotEmpty) {
-      if (typeName == cat || typeName.startsWith(cat) || cat.startsWith(typeName)) {
-        return true;
+    // 1. Si el evento tiene categoría oficial asignada en backend (distinta de vacía o 'otro')
+    // Respeta estrictamente esa categoría y NO permite mezclas accidentales con palabras del texto
+    if (typeName.isNotEmpty && typeName != 'otro') {
+      switch (cat) {
+        case 'concierto':
+          return typeName.contains('concierto') || typeName.contains('música') || typeName.contains('musica');
+        case 'festival':
+          return typeName.contains('festival') || typeName.contains('fest');
+        case 'feria':
+          return typeName.contains('feria');
+        case 'teatro':
+          return typeName.contains('teatro') || typeName.contains('comedia');
+        case 'deporte':
+          return typeName.contains('deporte') || typeName.contains('sport');
+        case 'conferencia':
+          return typeName.contains('conferencia') || typeName.contains('congreso') || typeName.contains('expo');
+        default:
+          return typeName == cat;
       }
-      if (cat == 'concierto' && (typeName.contains('concierto') || typeName.contains('música') || typeName.contains('musica'))) return true;
-      if (cat == 'festival' && (typeName.contains('festival') || typeName.contains('fest') || typeName.contains('feria'))) return true;
-      if (cat == 'teatro' && (typeName.contains('teatro') || typeName.contains('comedia') || typeName.contains('obra') || typeName.contains('musical'))) return true;
-      if (cat == 'deporte' && (typeName.contains('deporte') || typeName.contains('sport') || typeName.contains('futbol') || typeName.contains('fútbol'))) return true;
-      if (cat == 'conferencia' && (typeName.contains('conferencia') || typeName.contains('charla') || typeName.contains('seminario') || typeName.contains('expo'))) return true;
     }
 
-    // 2. Coincidencia inteligente por palabras clave en nombre, lugar o descripción
-    final name = ev.name.toLowerCase();
-    final desc = (ev.description ?? '').toLowerCase();
-    final venue = (ev.venueName ?? '').toLowerCase();
+    // 2. Solo si el evento NO tiene categoría asignada o es 'otro', se buscan palabras completas (con límite \b)
+    final textToSearch = '${ev.name} ${ev.venueName ?? ''} ${ev.description ?? ''}'.toLowerCase();
 
-    final List<String> keywords = [cat];
+    bool hasWord(String word) {
+      final regex = RegExp(r'\b' + RegExp.escape(word) + r'\b', caseSensitive: false);
+      return regex.hasMatch(textToSearch);
+    }
+
     switch (cat) {
       case 'concierto':
-        keywords.addAll(['concierto', 'conciertos', 'en vivo', 'live', 'tour', 'gira', 'banda', 'show', 'acústico', 'acustico', 'orquesta', 'sinfónica', 'recital', 'música', 'musica', 'cantante', 'rock', 'pop']);
-        break;
+        return ['concierto', 'conciertos', 'en vivo', 'live tour', 'recital'].any(hasWord);
       case 'festival':
-        keywords.addAll(['festival', 'festivales', 'fest', 'fair', 'feria', 'carnaval', 'open air']);
-        break;
+        return ['festival', 'festivales', 'open air'].any(hasWord);
+      case 'feria':
+        return ['feria', 'ferias', 'kermesse'].any(hasWord);
       case 'teatro':
-        keywords.addAll(['teatro', 'obra', 'musical', 'puesta en escena', 'comedia', 'stand up', 'standup', 'monólogo', 'monologo', 'drama', 'ballet']);
-        break;
+        return ['teatro', 'puesta en escena', 'stand up', 'standup', 'monólogo'].any(hasWord);
       case 'deporte':
-        keywords.addAll(['deporte', 'deportes', 'partido', 'juego', 'fútbol', 'futbol', 'soccer', 'carrera', 'maratón', 'maraton', 'box', 'lucha', 'béisbol', 'beisbol', 'básquetbol', 'torneo', 'champions', 'liga']);
-        break;
+        return ['deporte', 'deportes', 'partido', 'fútbol', 'futbol', 'maratón', 'maraton', 'torneo'].any(hasWord);
       case 'conferencia':
-        keywords.addAll(['conferencia', 'conferencias', 'charla', 'taller', 'seminario', 'simposio', 'cumbre', 'expo', 'exposición', 'exposicion', 'congreso', 'talk']);
-        break;
+        return ['conferencia', 'conferencias', 'seminario', 'simposio', 'cumbre'].any(hasWord);
+      default:
+        return false;
     }
-
-    return keywords.any((kw) => name.contains(kw) || desc.contains(kw) || venue.contains(kw));
   }
 
   void _aplicarFiltros() {
