@@ -16,6 +16,8 @@ class Evento {
   final String? status;
   final List<TipoBoleto> tiposBoleto;
   final List<EventoImagen> images;
+  final String? eventTypeId;
+  final String? eventTypeName;
 
   Evento({
     required this.id,
@@ -31,6 +33,8 @@ class Evento {
     this.status,
     this.tiposBoleto = const [],
     this.images = const [],
+    this.eventTypeId,
+    this.eventTypeName,
   });
 
   bool get estaReprogramado =>
@@ -122,6 +126,15 @@ class Evento {
       ));
     }
 
+    String? parsedEventTypeName = json['eventTypeName']?.toString() ??
+        json['eventType']?['name']?.toString() ??
+        (json['eventType'] is String ? json['eventType'].toString() : null) ??
+        json['categoria']?.toString() ??
+        json['category']?.toString();
+
+    String? parsedEventTypeId = json['eventTypeId']?.toString() ??
+        json['eventType']?['id']?.toString();
+
     return Evento(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? json['nombre'] ?? '').toString(),
@@ -136,6 +149,8 @@ class Evento {
       status: (json['status'] ?? json['estado'])?.toString(),
       tiposBoleto: parsedTipos,
       images: parsedImages,
+      eventTypeId: parsedEventTypeId,
+      eventTypeName: parsedEventTypeName,
     );
   }
 
@@ -154,6 +169,8 @@ class Evento {
       'status': status,
       'tiposBoleto': tiposBoleto.map((t) => t.toJson()).toList(),
       'images': images.map((i) => i.toJson()).toList(),
+      'eventTypeId': eventTypeId,
+      'eventTypeName': eventTypeName,
     };
   }
 }

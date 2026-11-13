@@ -31,8 +31,10 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
   final List<Map<String, dynamic>> _categorias = [
     {'id': 'todos', 'label': 'Todos', 'icon': Icons.grid_view_rounded},
     {'id': 'concierto', 'label': 'Conciertos', 'icon': Icons.music_note_rounded},
-    {'id': 'teatro', 'label': 'Teatro', 'icon': Icons.theater_comedy_rounded},
     {'id': 'festival', 'label': 'Festivales', 'icon': Icons.festival_rounded},
+    {'id': 'teatro', 'label': 'Teatro', 'icon': Icons.theater_comedy_rounded},
+    {'id': 'deporte', 'label': 'Deportes', 'icon': Icons.sports_soccer_rounded},
+    {'id': 'conferencia', 'label': 'Conferencias', 'icon': Icons.groups_rounded},
   ];
 
   @override
@@ -106,6 +108,51 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
     }
   }
 
+  bool _matchesCategory(Evento ev, String categoryId) {
+    if (categoryId == 'todos') return true;
+
+    final cat = categoryId.toLowerCase().trim();
+    final typeName = (ev.eventTypeName ?? '').toLowerCase().trim();
+
+    // 1. Coincidencia por tipo de evento asignado en la base de datos
+    if (typeName.isNotEmpty) {
+      if (typeName == cat || typeName.startsWith(cat) || cat.startsWith(typeName)) {
+        return true;
+      }
+      if (cat == 'concierto' && (typeName.contains('concierto') || typeName.contains('música') || typeName.contains('musica'))) return true;
+      if (cat == 'festival' && (typeName.contains('festival') || typeName.contains('fest') || typeName.contains('feria'))) return true;
+      if (cat == 'teatro' && (typeName.contains('teatro') || typeName.contains('comedia') || typeName.contains('obra') || typeName.contains('musical'))) return true;
+      if (cat == 'deporte' && (typeName.contains('deporte') || typeName.contains('sport') || typeName.contains('futbol') || typeName.contains('fútbol'))) return true;
+      if (cat == 'conferencia' && (typeName.contains('conferencia') || typeName.contains('charla') || typeName.contains('seminario') || typeName.contains('expo'))) return true;
+    }
+
+    // 2. Coincidencia inteligente por palabras clave en nombre, lugar o descripción
+    final name = ev.name.toLowerCase();
+    final desc = (ev.description ?? '').toLowerCase();
+    final venue = (ev.venueName ?? '').toLowerCase();
+
+    final List<String> keywords = [cat];
+    switch (cat) {
+      case 'concierto':
+        keywords.addAll(['concierto', 'conciertos', 'en vivo', 'live', 'tour', 'gira', 'banda', 'show', 'acústico', 'acustico', 'orquesta', 'sinfónica', 'recital', 'música', 'musica', 'cantante', 'rock', 'pop']);
+        break;
+      case 'festival':
+        keywords.addAll(['festival', 'festivales', 'fest', 'fair', 'feria', 'carnaval', 'open air']);
+        break;
+      case 'teatro':
+        keywords.addAll(['teatro', 'obra', 'musical', 'puesta en escena', 'comedia', 'stand up', 'standup', 'monólogo', 'monologo', 'drama', 'ballet']);
+        break;
+      case 'deporte':
+        keywords.addAll(['deporte', 'deportes', 'partido', 'juego', 'fútbol', 'futbol', 'soccer', 'carrera', 'maratón', 'maraton', 'box', 'lucha', 'béisbol', 'beisbol', 'básquetbol', 'torneo', 'champions', 'liga']);
+        break;
+      case 'conferencia':
+        keywords.addAll(['conferencia', 'conferencias', 'charla', 'taller', 'seminario', 'simposio', 'cumbre', 'expo', 'exposición', 'exposicion', 'congreso', 'talk']);
+        break;
+    }
+
+    return keywords.any((kw) => name.contains(kw) || desc.contains(kw) || venue.contains(kw));
+  }
+
   void _aplicarFiltros() {
     final query = _searchController.text.toLowerCase().trim();
     setState(() {
@@ -114,11 +161,10 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
             ev.name.toLowerCase().contains(query) ||
             (ev.venueName != null && ev.venueName!.toLowerCase().contains(query)) ||
             (ev.city != null && ev.city!.toLowerCase().contains(query)) ||
-            (ev.description != null && ev.description!.toLowerCase().contains(query));
+            (ev.description != null && ev.description!.toLowerCase().contains(query)) ||
+            (ev.eventTypeName != null && ev.eventTypeName!.toLowerCase().contains(query));
 
-        final matchCategory = _selectedCategory == 'todos' ||
-            ev.name.toLowerCase().contains(_selectedCategory) ||
-            (ev.description != null && ev.description!.toLowerCase().contains(_selectedCategory));
+        final matchCategory = _matchesCategory(ev, _selectedCategory);
 
         return matchSearch && matchCategory;
       }).toList();
@@ -488,8 +534,10 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
                           ),
                           const SizedBox(height: 22),
 
-                          // Featured Event / Hero Header
-                          if (_eventosFiltrados.isNotEmpty) ...[
+                          // Featured Event / Hero Header (solo en catálogo general sin filtros)
+                          final isFullCatalog = _selectedCategory == 'todos' && _searchController.text.trim().isEmpty;
+
+                          if (isFullCatalog && _eventosFiltrados.isNotEmpty) ...[
                             Row(
                               children: [
                                 const Icon(Icons.star_rounded, size: 18, color: BroncosColors.sunsetOrange),
@@ -510,12 +558,14 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
                             const SizedBox(height: 26),
                           ],
 
-                          // Section Title: Próximos eventos
+                          // Section Title: Próximos eventos o Resultados
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Cartelera de eventos',
+                                isFullCatalog
+                                    ? 'Cartelera de eventos'
+                                    : 'Resultados (${_eventosFiltrados.length})',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -544,8 +594,11 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
 
                           if (_eventosFiltrados.isEmpty)
                             _buildEmptyState()
+                          else if (isFullCatalog && _eventosFiltrados.length > 1)
+                            // En catálogo general sin filtros, evitamos duplicar el evento destacado
+                            ..._eventosFiltrados.skip(1).map((ev) => _buildEventCard(ev))
                           else
-                            // Event cards list
+                            // En búsquedas y categorías, listamos todos los eventos coincidentes
                             ..._eventosFiltrados.map((ev) => _buildEventCard(ev)),
                           const SizedBox(height: 24),
                         ],
@@ -1026,6 +1079,27 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               color: BroncosColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _selectedCategory = 'todos';
+              });
+              _aplicarFiltros();
+            },
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: Text(
+              'Ver todos los eventos',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: BroncosColors.sunsetOrange,
+              side: const BorderSide(color: BroncosColors.sunsetOrange),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ],
