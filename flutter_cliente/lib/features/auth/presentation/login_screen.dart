@@ -52,12 +52,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isRegisterMode) {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text;
+        final firstName = _firstNameController.text.trim();
+
         await _authRepo.register(
-          firstName: _firstNameController.text.trim(),
+          firstName: firstName,
           lastName: _lastNameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+          email: email,
+          password: password,
         );
+
+        // Si por alguna razón el endpoint de registro no emitió token directo, autenticar de inmediato
+        if (!await _authRepo.isAuthenticated()) {
+          await _authRepo.login(email, password);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('¡Bienvenido(a), $firstName! Sesión iniciada automáticamente.'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       } else {
         await _authRepo.login(
           _emailController.text.trim(),

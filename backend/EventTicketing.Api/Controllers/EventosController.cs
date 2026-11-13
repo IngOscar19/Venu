@@ -33,7 +33,9 @@ public class EventosController : ControllerBase
                 t.Id,
                 t.Nombre,
                 t.Precio,
-                Disponibles = t.CantidadDisponible - t.CantidadVendida
+                CantidadDisponible = t.CantidadDisponible,
+                CantidadVendida = t.CantidadVendida,
+                Disponibles = Math.Max(0, t.CantidadDisponible - t.CantidadVendida)
             })
             .ToListAsync();
 

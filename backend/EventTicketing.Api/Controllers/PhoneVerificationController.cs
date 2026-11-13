@@ -17,15 +17,18 @@ public class PhoneVerificationController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly ISmsService _smsService;
+    private readonly IConfiguration _config;
     private readonly ILogger<PhoneVerificationController> _logger;
 
     public PhoneVerificationController(
         ApplicationDbContext db,
         ISmsService smsService,
+        IConfiguration config,
         ILogger<PhoneVerificationController> logger)
     {
         _db = db;
         _smsService = smsService;
+        _config = config;
         _logger = logger;
     }
 
@@ -81,7 +84,12 @@ public class PhoneVerificationController : ControllerBase
         var mensajeSms = $"Tu código de verificación de Venu es: {codigo}. Válido por 10 minutos. No lo compartas con nadie.";
         var enviado = await _smsService.EnviarSmsAsync(phoneLimpio, mensajeSms);
 
-        if (!enviado)
+        var accountSid = _config["Twilio:AccountSid"];
+        var authToken = _config["Twilio:AuthToken"];
+        var fromNumber = _config["Twilio:FromNumber"];
+        var esSimulado = string.IsNullOrWhiteSpace(accountSid) || string.IsNullOrWhiteSpace(authToken) || string.IsNullOrWhiteSpace(fromNumber);
+
+        if (!enviado && !esSimulado)
         {
             _logger.LogWarning("No se pudo enviar el SMS al número {Phone}", phoneLimpio);
         }
@@ -89,9 +97,13 @@ public class PhoneVerificationController : ControllerBase
         return Ok(new
         {
             exito = true,
-            mensaje = "Código enviado por SMS exitosamente.",
+            mensaje = esSimulado
+                ? "Servidor en modo de pruebas (SMS Simulado). Tu código fue generado con éxito."
+                : "Código enviado por SMS exitosamente.",
             telefono = phoneLimpio,
-            expiraEnSegundos = 600
+            expiraEnSegundos = 600,
+            esSimulado = esSimulado,
+            codigoSimulado = esSimulado ? codigo : null
         });
     }
 

@@ -7,12 +7,9 @@ import '../../../core/network/api_endpoints.dart';
 
 class AuthRepository {
   final ApiClient _apiClient = ApiClient();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
-  );
 
-  static const String _userKey = 'user_data';
-  static Map<String, dynamic>? _cachedUserData;
+  // Datos del usuario en memoria para la sesión activa
+  static Map<String, dynamic>? _sessionUserData;
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -30,13 +27,7 @@ class AuthRepository {
         await _apiClient.saveToken(token.toString());
       }
 
-      _cachedUserData = data;
-      try {
-        await _storage.write(key: _userKey, value: jsonEncode(data));
-      } catch (e) {
-        debugPrint('[AuthRepository] Advertencia al persistir usuario: $e');
-      }
-
+      _sessionUserData = data;
       return data;
     } on DioException catch (e) {
       final message = e.response?.data?['message'] ??
@@ -70,13 +61,7 @@ class AuthRepository {
         await _apiClient.saveToken(token.toString());
       }
 
-      _cachedUserData = data;
-      try {
-        await _storage.write(key: _userKey, value: jsonEncode(data));
-      } catch (e) {
-        debugPrint('[AuthRepository] Advertencia al persistir usuario: $e');
-      }
-
+      _sessionUserData = data;
       return data;
     } on DioException catch (e) {
       final message = e.response?.data?['message'] ??
@@ -87,29 +72,21 @@ class AuthRepository {
   }
 
   Future<Map<String, dynamic>?> getCurrentUser() async {
-    if (_cachedUserData != null) {
-      return _cachedUserData;
+    if (_sessionUserData != null) {
+      return _sessionUserData;
     }
 
-    try {
-      final raw = await _storage.read(key: _userKey);
-      if (raw != null && raw.isNotEmpty) {
-        _cachedUserData = jsonDecode(raw) as Map<String, dynamic>;
-        return _cachedUserData;
-      }
-    } catch (e) {
-      debugPrint('[AuthRepository] Advertencia leyendo storage: $e');
+    final token = await _apiClient.getToken();
+    if (token == null || token.isEmpty) {
+      return null;
     }
 
-    // Intentar consultar al backend /api/auth/me
+    // Consultar al backend /api/auth/me usando el token de sesión
     try {
       final res = await _apiClient.dio.get(ApiEndpoints.me);
       if (res.data != null && res.data is Map<String, dynamic>) {
-        _cachedUserData = res.data as Map<String, dynamic>;
-        try {
-          await _storage.write(key: _userKey, value: jsonEncode(res.data));
-        } catch (_) {}
-        return _cachedUserData;
+        _sessionUserData = res.data as Map<String, dynamic>;
+        return _sessionUserData;
       }
     } catch (_) {}
 
@@ -117,13 +94,8 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    _cachedUserData = null;
+    _sessionUserData = null;
     await _apiClient.clearToken();
-    try {
-      await _storage.delete(key: _userKey);
-    } catch (e) {
-      debugPrint('[AuthRepository] Advertencia al borrar storage: $e');
-    }
   }
 
   Future<bool> isAuthenticated() async {
@@ -162,12 +134,9 @@ class AuthRepository {
         },
       );
       final data = response.data as Map<String, dynamic>;
-      if (_cachedUserData != null) {
-        _cachedUserData!['phoneVerified'] = true;
-        _cachedUserData!['phoneNumber'] = data['phoneNumber'] ?? phoneNumber;
-        try {
-          await _storage.write(key: _userKey, value: jsonEncode(_cachedUserData));
-        } catch (_) {}
+      if (_sessionUserData != null) {
+        _sessionUserData!['phoneVerified'] = true;
+        _sessionUserData!['phoneNumber'] = data['phoneNumber'] ?? phoneNumber;
       }
       return data;
     } on DioException catch (e) {
@@ -179,19 +148,16 @@ class AuthRepository {
   }
 
   Future<bool> isPhoneVerified() async {
-    if (_cachedUserData != null && _cachedUserData!['phoneVerified'] == true) {
+    if (_sessionUserData != null && _sessionUserData!['phoneVerified'] == true) {
       return true;
     }
     try {
       final response = await _apiClient.dio.get(ApiEndpoints.phoneStatus);
       if (response.data != null && response.data is Map<String, dynamic>) {
         final verified = response.data['phoneVerified'] == true;
-        if (_cachedUserData != null) {
-          _cachedUserData!['phoneVerified'] = verified;
-          _cachedUserData!['phoneNumber'] = response.data['phoneNumber'];
-          try {
-            await _storage.write(key: _userKey, value: jsonEncode(_cachedUserData));
-          } catch (_) {}
+        if (_sessionUserData != null) {
+          _sessionUserData!['phoneVerified'] = verified;
+          _sessionUserData!['phoneNumber'] = response.data['phoneNumber'];
         }
         return verified;
       }

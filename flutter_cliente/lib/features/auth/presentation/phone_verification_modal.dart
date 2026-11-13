@@ -41,6 +41,7 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _normalizedPhone;
+  String? _simulatedCode;
 
   int _resendCountdown = 0;
   Timer? _resendTimer;
@@ -93,6 +94,7 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
       setState(() {
         _isCodeSent = true;
         _normalizedPhone = res['telefono'] ?? formattedPhone;
+        _simulatedCode = res['codigoSimulado']?.toString();
         _isLoading = false;
       });
 
@@ -272,10 +274,13 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
                 Container(
                   decoration: BoxDecoration(
                     color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: BroncosColors.sunsetOrange.withOpacity(0.6),
+                      width: 1.5,
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                   child: Row(
                     children: [
                       const Text(
@@ -289,7 +294,7 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
                       const SizedBox(width: 12),
                       Container(
                         width: 1,
-                        height: 24,
+                        height: 28,
                         color: Colors.white24,
                       ),
                       const SizedBox(width: 12),
@@ -298,19 +303,34 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
                           maxLength: 10,
+                          cursorColor: BroncosColors.sunsetOrange,
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
-                            letterSpacing: 1.2,
+                            letterSpacing: 1.5,
                           ),
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           decoration: const InputDecoration(
+                            isDense: true,
+                            filled: true,
+                            fillColor: Color(0xFF0F172A),
                             border: InputBorder.none,
-                            hintText: '10 dígitos (ej. 5512345678)',
-                            hintStyle: TextStyle(color: Colors.white38),
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            hintText: '10 dígitos (ej. 4151234567)',
+                            hintStyle: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 14,
+                              letterSpacing: 0,
+                              fontWeight: FontWeight.normal,
+                            ),
                             counterText: '',
+                            contentPadding: EdgeInsets.symmetric(vertical: 14),
                           ),
                         ),
                       ),
@@ -326,6 +346,84 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
                   onPressed: _enviarCodigo,
                 ),
               ] else ...[
+                // Banner de Código Simulado cuando el backend no tiene Twilio configurado
+                if (_simulatedCode != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F253E),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.5)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: Color(0xFF38BDF8), size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Servidor en Modo de Pruebas (SMS)',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF38BDF8),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'El servidor no tiene credenciales de Twilio configuradas aún. Tu código generado es:',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        InkWell(
+                          onTap: () {
+                            _codeController.text = _simulatedCode!;
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _simulatedCode!,
+                                  style: GoogleFonts.spaceMono(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    letterSpacing: 4,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  '(Toca para autocompletar)',
+                                  style: TextStyle(
+                                    color: Color(0xFF38BDF8),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Paso 2: Ingresar código de 6 dígitos
                 Text(
                   'Código enviado a ${_normalizedPhone ?? "+52${_phoneController.text}"}',
@@ -348,14 +446,15 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
                 Container(
                   decoration: BoxDecoration(
                     color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: BroncosColors.sunsetOrange.withOpacity(0.5)),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: BroncosColors.sunsetOrange, width: 1.8),
                   ),
                   child: TextField(
                     controller: _codeController,
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     maxLength: 6,
+                    cursorColor: BroncosColors.sunsetOrange,
                     style: GoogleFonts.spaceMono(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -366,14 +465,21 @@ class _PhoneVerificationModalState extends State<PhoneVerificationModal> {
                       FilteringTextInputFormatter.digitsOnly,
                     ],
                     decoration: const InputDecoration(
+                      isDense: true,
+                      filled: true,
+                      fillColor: Color(0xFF0F172A),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
                       hintText: '000000',
                       hintStyle: TextStyle(
                         color: Colors.white24,
                         letterSpacing: 12,
                       ),
                       counterText: '',
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),

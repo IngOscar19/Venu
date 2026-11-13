@@ -15,9 +15,8 @@ class ApiClient {
   );
   static const String _tokenKey = 'auth_token';
 
-  // In-memory cache for the JWT token to avoid repeated Keychain access
-  String? _cachedToken;
-  bool _tokenLoaded = false;
+  // Almacenamiento de sesión en memoria (volátil por ejecución de la app)
+  String? _sessionToken;
   bool _manejandoSesionExpirada = false;
 
   ApiClient._internal() {
@@ -120,39 +119,32 @@ class ApiClient {
     }
   }
 
-  Future<void> saveToken(String token) async {
-    _cachedToken = token;
-    _tokenLoaded = true;
+  /// Limpia cualquier residuo de sesiones pasadas en disco
+  static Future<void> wipeDiskStorageOnAppStart() async {
     try {
-      await _storage.write(key: _tokenKey, value: token);
+      const storage = FlutterSecureStorage(
+        mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+      );
+      await storage.deleteAll();
     } catch (e) {
-      debugPrint('[ApiClient] Error persistiendo token en almacenamiento seguro: $e');
+      debugPrint('[ApiClient] Limpieza de storage inicial: $e');
     }
+  }
+
+  Future<void> saveToken(String token) async {
+    _sessionToken = token;
   }
 
   Future<String?> getToken() async {
-    if (_tokenLoaded) {
-      return _cachedToken;
-    }
-    try {
-      _cachedToken = await _storage.read(key: _tokenKey);
-      _tokenLoaded = true;
-      return _cachedToken;
-    } catch (e) {
-      debugPrint('[ApiClient] Advertencia al leer Keychain/Storage: $e');
-      _tokenLoaded = true;
-      return null;
-    }
+    return _sessionToken;
   }
 
   Future<void> clearToken() async {
-    _cachedToken = null;
-    _tokenLoaded = true;
+    _sessionToken = null;
     try {
-      await _storage.delete(key: _tokenKey);
-      await _storage.delete(key: 'boletos_cache'); // no dejar boletos del usuario anterior
+      await _storage.deleteAll();
     } catch (e) {
-      debugPrint('[ApiClient] Error eliminando token de almacenamiento: $e');
+      debugPrint('[ApiClient] Error limpiando storage: $e');
     }
   }
 }
