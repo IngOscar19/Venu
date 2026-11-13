@@ -14,11 +14,11 @@ public class TwilioOrSimulatedSmsService : ISmsService
         _logger = logger;
     }
 
-    public async Task<bool> EnviarSmsAsync(string telefono, string mensaje)
+    public async Task<SmsResult> EnviarSmsAsync(string telefono, string mensaje)
     {
-        var accountSid = _config["Twilio:AccountSid"];
-        var authToken = _config["Twilio:AuthToken"];
-        var fromNumber = _config["Twilio:FromNumber"];
+        var accountSid = GetConfig("AccountSid")?.Trim();
+        var authToken = GetConfig("AuthToken")?.Trim();
+        var fromNumber = GetConfig("FromNumber")?.Trim();
 
         // Si Twilio está configurado, enviamos por Twilio API
         if (!string.IsNullOrWhiteSpace(accountSid) && !string.IsNullOrWhiteSpace(authToken) && !string.IsNullOrWhiteSpace(fromNumber))
@@ -38,23 +38,24 @@ public class TwilioOrSimulatedSmsService : ISmsService
                 };
 
                 var response = await client.PostAsync(url, new FormUrlEncodedContent(form));
+                var responseBody = await response.Content.ReadAsStringAsync();
+
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("SMS enviado exitosamente vía Twilio a {Telefono}", telefono);
-                    return true;
+                    return new SmsResult(true, false);
                 }
                 else
                 {
-                    var errorBody = await response.Content.ReadAsStringAsync();
                     _logger.LogWarning("Twilio devolvió código {StatusCode} al enviar SMS a {Telefono}: {Error}",
-                        response.StatusCode, telefono, errorBody);
-                    return false;
+                        response.StatusCode, telefono, responseBody);
+                    return new SmsResult(false, false, responseBody);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Excepción al enviar SMS con Twilio a {Telefono}", telefono);
-                return false;
+                return new SmsResult(false, false, ex.Message);
             }
         }
 
@@ -65,6 +66,20 @@ public class TwilioOrSimulatedSmsService : ISmsService
         _logger.LogInformation("==================================================");
 
         await Task.CompletedTask;
-        return true;
+        return new SmsResult(true, true);
+    }
+
+    private string? GetConfig(string key)
+    {
+        var val = _config[$"Twilio:{key}"];
+        if (!string.IsNullOrWhiteSpace(val)) return val;
+        val = Environment.GetEnvironmentVariable($"Twilio__{key}");
+        if (!string.IsNullOrWhiteSpace(val)) return val;
+        val = Environment.GetEnvironmentVariable($"Twilio:{key}");
+        if (!string.IsNullOrWhiteSpace(val)) return val;
+        val = Environment.GetEnvironmentVariable($"TWILIO_{key.ToUpper()}");
+        if (!string.IsNullOrWhiteSpace(val)) return val;
+        val = Environment.GetEnvironmentVariable($"TWILIO__{key.ToUpper()}");
+        return val;
     }
 }

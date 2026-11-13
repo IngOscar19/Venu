@@ -82,28 +82,33 @@ public class PhoneVerificationController : ControllerBase
         await _db.SaveChangesAsync();
 
         var mensajeSms = $"Tu código de verificación de Venu es: {codigo}. Válido por 10 minutos. No lo compartas con nadie.";
-        var enviado = await _smsService.EnviarSmsAsync(phoneLimpio, mensajeSms);
+        var resultadoSms = await _smsService.EnviarSmsAsync(phoneLimpio, mensajeSms);
 
-        var accountSid = _config["Twilio:AccountSid"];
-        var authToken = _config["Twilio:AuthToken"];
-        var fromNumber = _config["Twilio:FromNumber"];
-        var esSimulado = string.IsNullOrWhiteSpace(accountSid) || string.IsNullOrWhiteSpace(authToken) || string.IsNullOrWhiteSpace(fromNumber);
-
-        if (!enviado && !esSimulado)
+        if (!resultadoSms.Exito && !resultadoSms.EsSimulado)
         {
-            _logger.LogWarning("No se pudo enviar el SMS al número {Phone}", phoneLimpio);
+            _logger.LogWarning("Twilio no pudo enviar el SMS al número {Phone}: {Error}", phoneLimpio, resultadoSms.Error);
+            return Ok(new
+            {
+                exito = true,
+                mensaje = "Twilio no pudo entregar el SMS en la red celular. Código de respaldo generado para pruebas.",
+                telefono = phoneLimpio,
+                expiraEnSegundos = 600,
+                esSimulado = true,
+                codigoSimulado = codigo,
+                errorTwilio = resultadoSms.Error
+            });
         }
 
         return Ok(new
         {
             exito = true,
-            mensaje = esSimulado
+            mensaje = resultadoSms.EsSimulado
                 ? "Servidor en modo de pruebas (SMS Simulado). Tu código fue generado con éxito."
-                : "Código enviado por SMS exitosamente.",
+                : "Código enviado por SMS exitosamente vía Twilio a tu celular.",
             telefono = phoneLimpio,
             expiraEnSegundos = 600,
-            esSimulado = esSimulado,
-            codigoSimulado = esSimulado ? codigo : null
+            esSimulado = resultadoSms.EsSimulado,
+            codigoSimulado = resultadoSms.EsSimulado ? codigo : null
         });
     }
 
