@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -75,6 +77,7 @@ class _BoletoDetalleScreenState extends State<BoletoDetalleScreen> with SingleTi
   }
 
   Future<void> _maximizarBrillo() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
     try {
       _brilloOriginal = await ScreenBrightness().application;
       await ScreenBrightness().setApplicationScreenBrightness(1.0);
@@ -84,6 +87,7 @@ class _BoletoDetalleScreenState extends State<BoletoDetalleScreen> with SingleTi
   }
 
   Future<void> _restaurarBrillo() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
     try {
       if (_brilloOriginal != null) {
         await ScreenBrightness().setApplicationScreenBrightness(_brilloOriginal!);

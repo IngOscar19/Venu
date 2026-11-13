@@ -175,6 +175,36 @@ public class AuthService : IAuthService
         );
     }
 
+    public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) throw new KeyNotFoundException("Usuario no encontrado.");
+
+        if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+        {
+            throw new ValidationException("La contraseña actual es incorrecta.");
+        }
+
+        if (BCrypt.Net.BCrypt.Verify(dto.NewPassword, user.PasswordHash))
+        {
+            throw new ValidationException("La nueva contraseña no puede ser idéntica a la actual.");
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _audit.LogAsync(
+            action: AuditActions.UserPasswordChanged,
+            entityType: "User",
+            entityId: user.Id,
+            userId: user.Id,
+            details: "Contraseña actualizada exitosamente.",
+            httpContext: _httpContextAccessor.HttpContext);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     private string GenerateJwtToken(User user, Guid? organizerId)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");

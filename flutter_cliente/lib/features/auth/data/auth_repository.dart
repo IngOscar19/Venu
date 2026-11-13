@@ -30,10 +30,7 @@ class AuthRepository {
       _sessionUserData = data;
       return data;
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ??
-          e.response?.data?['title'] ??
-          'Error al iniciar sesión';
-      throw Exception(message);
+      throw Exception(_parseDioError(e, 'Credenciales de acceso incorrectas.'));
     }
   }
 
@@ -64,11 +61,39 @@ class AuthRepository {
       _sessionUserData = data;
       return data;
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ??
-          e.response?.data?['title'] ??
-          'Error al registrarse';
-      throw Exception(message);
+      throw Exception(_parseDioError(e, 'Error al registrar la cuenta.'));
     }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _apiClient.dio.post(
+        '/api/auth/change-password',
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } on DioException catch (e) {
+      throw Exception(_parseDioError(e, 'Error al cambiar la contraseña.'));
+    }
+  }
+
+  String _parseDioError(DioException e, String fallback) {
+    final data = e.response?.data;
+    if (data is Map) {
+      return data['message']?.toString() ??
+          data['mensaje']?.toString() ??
+          data['title']?.toString() ??
+          data['error']?.toString() ??
+          fallback;
+    } else if (data is String && data.trim().isNotEmpty) {
+      return data.trim();
+    }
+    return e.message ?? fallback;
   }
 
   Future<Map<String, dynamic>?> getCurrentUser() async {
@@ -116,10 +141,7 @@ class AuthRepository {
       );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      final message = e.response?.data?['mensaje'] ??
-          e.response?.data?['message'] ??
-          'Error al enviar el correo de verificación';
-      throw Exception(message);
+      throw Exception(_parseDioError(e, 'Error al enviar el correo de verificación.'));
     }
   }
 
@@ -152,10 +174,7 @@ class AuthRepository {
       );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      final message = e.response?.data?['mensaje'] ??
-          e.response?.data?['message'] ??
-          'Error al enviar el código SMS';
-      throw Exception(message);
+      throw Exception(_parseDioError(e, 'Error al enviar el código SMS.'));
     }
   }
 
@@ -175,10 +194,7 @@ class AuthRepository {
       }
       return data;
     } on DioException catch (e) {
-      final message = e.response?.data?['mensaje'] ??
-          e.response?.data?['message'] ??
-          'Error al verificar el código';
-      throw Exception(message);
+      throw Exception(_parseDioError(e, 'Error al verificar el código.'));
     }
   }
 

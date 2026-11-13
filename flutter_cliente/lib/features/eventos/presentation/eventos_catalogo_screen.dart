@@ -243,6 +243,16 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
                         ),
                         const PopupMenuDivider(),
                         PopupMenuItem<String>(
+                          value: 'perfil',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person_outline_rounded, size: 18, color: BroncosColors.textSecondary),
+                              const SizedBox(width: 10),
+                              Text('Mi perfil y seguridad', style: GoogleFonts.plusJakartaSans(fontSize: 13.5)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem<String>(
                           value: 'boletos',
                           child: Row(
                             children: [
@@ -261,19 +271,21 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
                               Text(
                                 'Cerrar sesión',
                                 style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13.5,
-                                  color: BroncosColors.error,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      onSelected: (val) async {
-                        if (val == 'boletos') {
-                          _abrirMisBoletos();
-                        } else if (val == 'logout') {
+                                   fontSize: 13.5,
+                                   color: BroncosColors.error,
+                                   fontWeight: FontWeight.w600,
+                                 ),
+                               ),
+                             ],
+                           ),
+                         ),
+                       ],
+                       onSelected: (val) async {
+                         if (val == 'perfil') {
+                           Navigator.of(context).pushNamed('/perfil').then((_) => _verificarAuth());
+                         } else if (val == 'boletos') {
+                           _abrirMisBoletos();
+                         } else if (val == 'logout') {
                           await _authRepo.logout();
                           await _verificarAuth();
                           if (context.mounted) {

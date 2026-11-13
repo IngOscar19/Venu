@@ -48,4 +48,18 @@ public class AuthController : ControllerBase
         var profile = await _authService.GetProfileAsync(userId);
         return Ok(profile);
     }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("Token de autenticación inválido o expirado.");
+        }
+
+        await _authService.ChangePasswordAsync(userId, dto);
+        return Ok(new { mensaje = "Contraseña actualizada exitosamente." });
+    }
 }

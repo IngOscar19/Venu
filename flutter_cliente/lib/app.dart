@@ -10,6 +10,7 @@ import 'features/checkout/presentation/pago_webview_screen.dart';
 import 'features/checkout/presentation/pago_resultado_screen.dart';
 import 'features/mis_boletos/presentation/mis_boletos_screen.dart';
 import 'features/mis_boletos/presentation/boleto_detalle_screen.dart';
+import 'features/perfil/presentation/perfil_screen.dart';
 import 'models/boleto.dart';
 import 'models/evento.dart';
 
@@ -92,6 +93,11 @@ class EventTicketingApp extends StatelessWidget {
             final boleto = settings.arguments as Boleto;
             return MaterialPageRoute(
               builder: (_) => BoletoDetalleScreen(boleto: boleto),
+            );
+
+          case '/perfil':
+            return MaterialPageRoute(
+              builder: (_) => const PerfilScreen(),
             );
 
           default:
