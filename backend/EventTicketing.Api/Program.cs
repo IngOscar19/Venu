@@ -121,7 +121,7 @@ builder.Services.AddScoped<IOrganizerService, OrganizerService>();
 builder.Services.AddScoped<IGeneradorQr, QrCoderGenerador>();
 builder.Services.AddScoped<IDynamicQrService, DynamicQrService>();
 builder.Services.AddScoped<ISmsService, TwilioOrSimulatedSmsService>();
-builder.Services.AddScoped<IEmailService, ResendEmailService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<GenerarBoletosService>();
 builder.Services.AddScoped<CrearOrdenCommand>();
 builder.Services.AddHostedService<ExpiracionOrdenesJob>();
