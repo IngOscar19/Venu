@@ -18,10 +18,22 @@ public class ResendEmailService : IEmailService
     public async Task<EmailResult> EnviarCorreoAsync(string destinatario, string asunto, string cuerpoHtml)
     {
         var apiKey = GetConfig("ApiKey")?.Trim();
-        var fromEmail = GetConfig("FromEmail")?.Trim();
-        if (string.IsNullOrWhiteSpace(fromEmail))
+        var rawFrom = GetConfig("FromEmail")?.Trim();
+
+        // Normalización y corrección automática del remitente
+        string fromEmail;
+        if (string.IsNullOrWhiteSpace(rawFrom) || rawFrom.Contains("@gmail.com", StringComparison.OrdinalIgnoreCase))
         {
-            fromEmail = "Venú <onboarding@resend.dev>";
+            fromEmail = "Venu <onboarding@resend.dev>";
+        }
+        else
+        {
+            var clean = rawFrom.Replace("ú", "u").Replace("Ú", "U");
+            if (clean.Contains("<") && !clean.EndsWith(">"))
+            {
+                clean += ">";
+            }
+            fromEmail = clean;
         }
 
         // Si la clave de Resend está presente, enviamos vía Resend API

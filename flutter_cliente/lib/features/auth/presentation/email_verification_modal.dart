@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/broncos_theme.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../data/auth_repository.dart';
@@ -115,12 +116,44 @@ class _EmailVerificationModalState extends State<EmailVerificationModal> {
         _isLoading = false;
         _userEmail = res['email'] ?? _userEmail;
         _simulatedUrl = res['urlSimulada']?.toString();
+        if (res['errorProveedor'] != null) {
+          _errorMessage = 'Aviso de Resend: ${res['errorProveedor']}';
+        }
       });
       _iniciarCooldown(45);
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  Future<void> _abrirEnlaceDirecto() async {
+    if (_simulatedUrl == null) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final uri = Uri.parse(_simulatedUrl!);
+      final apiClient = ApiClient();
+      await apiClient.dio.get(uri.path + (uri.hasQuery ? '?${uri.query}' : ''));
+
+      setState(() {
+        _isVerified = true;
+        _isLoading = false;
+      });
+
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error validando enlace: $e';
       });
     }
   }
@@ -354,6 +387,52 @@ class _EmailVerificationModalState extends State<EmailVerificationModal> {
                   ],
                 ),
               ),
+
+              if (_simulatedUrl != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F253E),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.5)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Color(0xFF38BDF8), size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Enlace Directo de Verificación',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFF38BDF8),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Si tu proveedor de correo tarda en entregar el mensaje, confirma tu cuenta al instante con este botón:',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      CustomButton(
+                        text: 'Confirmar mi cuenta ahora',
+                        isLoading: _isLoading,
+                        icon: Icons.link_rounded,
+                        onPressed: _abrirEnlaceDirecto,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 24),
 

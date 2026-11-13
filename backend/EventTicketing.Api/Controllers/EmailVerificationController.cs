@@ -101,10 +101,26 @@ public class EmailVerificationController : ControllerBase
             "Verifica tu cuenta para tus boletos oficiales | Venú",
             cuerpoHtml);
 
+        if (!resultadoEnvio.Exito && !resultadoEnvio.EsSimulado)
+        {
+            _logger.LogWarning("Resend no pudo enviar el correo a {Email}: {Error}", user.Email, resultadoEnvio.Error);
+            return Ok(new
+            {
+                exito = true,
+                mensaje = "El servicio de correo reportó una restricción. Puedes confirmar tu cuenta con el enlace directo:",
+                email = user.Email,
+                esSimulado = true,
+                urlSimulada = verificationUrl,
+                errorProveedor = resultadoEnvio.Error
+            });
+        }
+
         return Ok(new
         {
             exito = true,
-            mensaje = "Enlace de verificación enviado a tu correo.",
+            mensaje = resultadoEnvio.EsSimulado
+                ? "Servidor en modo de pruebas. Haz clic en el enlace de verificación para confirmar tu cuenta."
+                : "Enlace de verificación enviado a tu correo.",
             email = user.Email,
             esSimulado = resultadoEnvio.EsSimulado,
             urlSimulada = resultadoEnvio.EsSimulado ? verificationUrl : null
