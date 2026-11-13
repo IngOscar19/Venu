@@ -1,4 +1,5 @@
 import '../core/config/env.dart';
+import 'evento_imagen.dart';
 import 'tipo_boleto.dart';
 
 class Evento {
@@ -14,6 +15,7 @@ class Evento {
   final String? imageUrl;
   final String? status;
   final List<TipoBoleto> tiposBoleto;
+  final List<EventoImagen> images;
 
   Evento({
     required this.id,
@@ -28,10 +30,48 @@ class Evento {
     this.imageUrl,
     this.status,
     this.tiposBoleto = const [],
+    this.images = const [],
   });
 
   bool get estaReprogramado =>
       status?.toUpperCase() == 'RESCHEDULED' || status == '4';
+
+  /// Imagen de portada priorizando type == 'POSTER'
+  EventoImagen? get posterImage {
+    if (images.isEmpty) return null;
+    return images.firstWhere(
+      (img) => img.isPoster,
+      orElse: () => images.first,
+    );
+  }
+
+  /// Fotos de galería (excluyendo el póster principal)
+  List<EventoImagen> get galleryImages {
+    final poster = posterImage;
+    return images.where((img) => img.id != poster?.id && !img.isPoster).toList();
+  }
+
+  /// Lista ordenada completa de imágenes para el visualizador Lightbox (portada primero, luego galería)
+  List<EventoImagen> get allDisplayImages {
+    final list = <EventoImagen>[];
+    final poster = posterImage;
+    if (poster != null) {
+      list.add(poster);
+    }
+    for (final img in galleryImages) {
+      list.add(img);
+    }
+    // Fallback: Si no había en la lista de imágenes pero existe imageUrl suelta
+    if (list.isEmpty && imageUrl != null && imageUrl!.isNotEmpty) {
+      list.add(EventoImagen(
+        id: 'poster-fallback',
+        url: imageUrl!,
+        type: 'POSTER',
+        order: 0,
+      ));
+    }
+    return list;
+  }
 
   factory Evento.fromJson(Map<String, dynamic> json) {
     // Parsear tipos de boleto si vienen como 'tiposBoleto' o 'sections'
@@ -46,19 +86,40 @@ class Evento {
           .toList();
     }
 
-    String? parsedImageUrl;
-    if (json['imageUrl'] != null) {
-      parsedImageUrl = json['imageUrl'].toString();
-    } else if (json['images'] != null && json['images'] is List && (json['images'] as List).isNotEmpty) {
-      final firstImage = (json['images'] as List).first;
-      if (firstImage is Map<String, dynamic>) {
-        parsedImageUrl = firstImage['url'] ?? firstImage['imageUrl'];
-      }
+    // Parsear lista de imágenes del evento
+    List<EventoImagen> parsedImages = [];
+    if (json['images'] != null && json['images'] is List) {
+      parsedImages = (json['images'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((item) => EventoImagen.fromJson(item))
+          .toList();
+      parsedImages.sort((a, b) => a.order.compareTo(b.order));
     }
 
-    // Si la imagen es una ruta relativa servida por el backend .NET (ej. /uploads/events/xxx.jpg)
+    // Determinar la mejor URL de portada
+    String? parsedImageUrl;
+    if (json['imageUrl'] != null && json['imageUrl'].toString().isNotEmpty) {
+      parsedImageUrl = json['imageUrl'].toString();
+    } else if (parsedImages.isNotEmpty) {
+      final poster = parsedImages.firstWhere(
+        (img) => img.isPoster,
+        orElse: () => parsedImages.first,
+      );
+      parsedImageUrl = poster.url;
+    }
+
     if (parsedImageUrl != null && parsedImageUrl.startsWith('/')) {
       parsedImageUrl = '${Env.apiBaseUrl}$parsedImageUrl';
+    }
+
+    // Si había imageUrl pero no venía en la colección images, la incorporamos
+    if (parsedImages.isEmpty && parsedImageUrl != null && parsedImageUrl.isNotEmpty) {
+      parsedImages.add(EventoImagen(
+        id: 'poster-auto',
+        url: parsedImageUrl,
+        type: 'POSTER',
+        order: 0,
+      ));
     }
 
     return Evento(
@@ -74,6 +135,7 @@ class Evento {
       imageUrl: parsedImageUrl,
       status: (json['status'] ?? json['estado'])?.toString(),
       tiposBoleto: parsedTipos,
+      images: parsedImages,
     );
   }
 
@@ -91,6 +153,7 @@ class Evento {
       'imageUrl': imageUrl,
       'status': status,
       'tiposBoleto': tiposBoleto.map((t) => t.toJson()).toList(),
+      'images': images.map((i) => i.toJson()).toList(),
     };
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/broncos_theme.dart';
@@ -7,6 +8,7 @@ import '../../../shared/utils/formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../data/eventos_repository.dart';
+import 'widgets/evento_image_lightbox.dart';
 import 'widgets/tipo_boleto_selector.dart';
 
 class EventoDetalleScreen extends StatefulWidget {
@@ -71,6 +73,19 @@ class _EventoDetalleScreenState extends State<EventoDetalleScreen> {
         });
       }
     }
+  }
+
+  void _abrirLightbox(int initialIndex) {
+    if (_evento == null) return;
+    final images = _evento!.allDisplayImages;
+    if (images.isEmpty) return;
+
+    EventoImageLightbox.show(
+      context: context,
+      images: images,
+      initialIndex: initialIndex,
+      eventName: _evento!.name,
+    );
   }
 
   int get _totalBoletosSeleccionados {
@@ -186,36 +201,8 @@ class _EventoDetalleScreenState extends State<EventoDetalleScreen> {
                               child: ListView(
                                 padding: const EdgeInsets.only(bottom: 24),
                                 children: [
-                                  // Hero Image with smooth aspect ratio
-                                  if (_evento!.imageUrl != null && _evento!.imageUrl!.isNotEmpty)
-                                    Stack(
-                                      children: [
-                                        Image.network(
-                                          _evento!.imageUrl!,
-                                          height: 250,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) =>
-                                              _buildImageFallback(),
-                                        ),
-                                        Positioned.fill(
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                begin: Alignment.topCenter,
-                                                end: Alignment.bottomCenter,
-                                                colors: [
-                                                  Colors.transparent,
-                                                  Colors.black.withValues(alpha: 0.35),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    _buildImageFallback(),
+                                  // Hero Image con presentación completa (BoxFit.contain, nunca cortada) y zoom lightbox
+                                  _buildHeroCover(),
 
                                   // Content details
                                   Padding(
@@ -338,6 +325,9 @@ class _EventoDetalleScreenState extends State<EventoDetalleScreen> {
                                           ),
                                           const SizedBox(height: 24),
                                         ],
+
+                                        // Galería de fotos adicionales del evento
+                                        _buildGallerySection(),
 
                                         // Tickets Selection
                                         Row(
@@ -527,6 +517,241 @@ class _EventoDetalleScreenState extends State<EventoDetalleScreen> {
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildHeroCover() {
+    final posterUrl = _evento?.imageUrl;
+    if (posterUrl == null || posterUrl.isEmpty) {
+      return _buildImageFallback();
+    }
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _abrirLightbox(0),
+        child: Container(
+          height: 320,
+          width: double.infinity,
+          color: const Color(0xFF0F172A),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Capa de fondo: Imagen con desenfoque ambiental para rellenar los bordes
+              Image.network(
+                posterUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.65),
+                ),
+              ),
+
+              // Capa frontal: Imagen de portada completa y nítida (BoxFit.contain, NUNCA CORTADA)
+              Center(
+                child: Image.network(
+                  posterUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+                ),
+              ),
+
+              // Gradiente inferior para transición suave
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 70,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.45),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Pill flotante superior: "Ver en grande" (estilo Venu)
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.zoom_in_rounded, size: 16, color: BroncosColors.sunsetOrange),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Ver en grande',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGallerySection() {
+    final gallery = _evento?.galleryImages ?? [];
+    if (gallery.isEmpty) return const SizedBox.shrink();
+
+    final hasPoster = _evento?.posterImage != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: BroncosColors.sunsetOrange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    size: 18,
+                    color: BroncosColors.sunsetOrange,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Galería de fotos',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: BroncosColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              '${gallery.length} foto${gallery.length > 1 ? 's' : ''} • Toca para ampliar',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: BroncosColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: gallery.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.35,
+              ),
+              itemBuilder: (context, index) {
+                final img = gallery[index];
+                final targetIndex = hasPoster ? index + 1 : index;
+
+                return MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () => _abrirLightbox(targetIndex),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            img.url,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: BroncosColors.sunsetOrange,
+                                ),
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFF1E293B),
+                              child: const Icon(Icons.broken_image_rounded, color: Colors.white38),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                              ),
+                              child: const Icon(
+                                Icons.fullscreen_rounded,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }
