@@ -15,6 +15,8 @@ public static class DbInitializer
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""PhoneNumber"" character varying(30);
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""PhoneVerified"" boolean NOT NULL DEFAULT FALSE;
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS ""PhoneVerifiedAt"" timestamp with time zone;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""EmailVerified"" boolean NOT NULL DEFAULT FALSE;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""EmailVerifiedAt"" timestamp with time zone;
 
                 CREATE TABLE IF NOT EXISTS ""PhoneVerificationCodes"" (
                     ""Id"" uuid NOT NULL PRIMARY KEY,
@@ -28,6 +30,18 @@ public static class DbInitializer
                     CONSTRAINT ""FK_PhoneVerificationCodes_users_UserId"" FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
                 );
                 CREATE INDEX IF NOT EXISTS ""IX_PhoneVerificationCodes_UserId_Code"" ON ""PhoneVerificationCodes"" (""UserId"", ""Code"");
+
+                CREATE TABLE IF NOT EXISTS ""EmailVerificationTokens"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL,
+                    ""Email"" character varying(256) NOT NULL,
+                    ""Token"" character varying(128) NOT NULL,
+                    ""IsUsed"" boolean NOT NULL DEFAULT FALSE,
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT (now()),
+                    ""ExpiresAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""FK_EmailVerificationTokens_users_UserId"" FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_EmailVerificationTokens_Token"" ON ""EmailVerificationTokens"" (""Token"");
             ");
         }
         catch

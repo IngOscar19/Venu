@@ -10,5 +10,6 @@ public record AuthResponseDto(
     Guid? OrganizerId = null,
     string? OrganizerStatus = null,
     string? PhoneNumber = null,
-    bool PhoneVerified = false
+    bool PhoneVerified = false,
+    bool EmailVerified = false
 );

@@ -19,5 +19,6 @@ public record UserProfileDto(
     DateTime CreatedAt,
     OrganizerProfileDto? Organizer,
     string? PhoneNumber = null,
-    bool PhoneVerified = false
+    bool PhoneVerified = false,
+    bool EmailVerified = false
 );

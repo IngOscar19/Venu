@@ -26,6 +26,10 @@ class ApiEndpoints {
   static const String misBoletos = '/api/usuarios/me/boletos';
   static String boletoDetalle(String id) => '/api/boletos/$id';
 
+  // Verificación por Correo Electrónico (Magic Link / Enlace directo)
+  static const String emailSendVerification = '/api/email-verification/send';
+  static const String emailVerificationStatus = '/api/email-verification/status';
+
   // Verificación Telefónica SMS (Anti-reventa / Identidad)
   static const String phoneSendCode = '/api/phone-verification/send-code';
   static const String phoneVerifyCode = '/api/phone-verification/verify-code';

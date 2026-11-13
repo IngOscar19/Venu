@@ -19,11 +19,11 @@ public class CrearOrdenCommand
         if (items is null || items.Count == 0)
             return ResultadoCrearOrden.Invalido("Debes seleccionar al menos un boleto.");
 
-        // ── Validación de identidad telefónica vía SMS (Anti-bot / Anti-reventa) ──
+        // ── Validación de identidad por Correo Electrónico (Anti-bot / Anti-reventa) ──
         var usuario = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuarioId);
-        if (usuario != null && !usuario.PhoneVerified)
+        if (usuario != null && !usuario.EmailVerified)
         {
-            return ResultadoCrearOrden.Invalido("PHONE_NOT_VERIFIED: Debes verificar tu número celular mediante un código SMS antes de realizar la compra.");
+            return ResultadoCrearOrden.Invalido("EMAIL_NOT_VERIFIED: Debes confirmar tu correo electrónico mediante el enlace de verificación antes de realizar la compra.");
         }
 
         // Se consolidan duplicados y se valida cantidad

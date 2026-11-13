@@ -7,7 +7,7 @@ import '../../../models/tipo_boleto.dart';
 import '../../../shared/utils/formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../auth/presentation/phone_verification_modal.dart';
+import '../../auth/presentation/email_verification_modal.dart';
 import '../data/ordenes_repository.dart';
 import '../data/pagos_repository.dart';
 
@@ -87,11 +87,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     }
 
-    // Validación de identidad por SMS anti-reventa
-    final isPhoneVerified = await _authRepo.isPhoneVerified();
-    if (!isPhoneVerified) {
+    // Validación de identidad por Correo Electrónico anti-reventa
+    final isEmailVerified = await _authRepo.isEmailVerified();
+    if (!isEmailVerified) {
       if (mounted) {
-        final verified = await PhoneVerificationModal.show(
+        final verified = await EmailVerificationModal.show(
           context,
           authRepository: _authRepo,
         );
@@ -148,8 +148,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (e) {
       if (mounted) {
         final errText = e.toString().replaceFirst('Exception: ', '');
-        if (errText.contains('PHONE_NOT_VERIFIED')) {
-          final verified = await PhoneVerificationModal.show(
+        if (errText.contains('EMAIL_NOT_VERIFIED') || errText.contains('PHONE_NOT_VERIFIED')) {
+          final verified = await EmailVerificationModal.show(
             context,
             authRepository: _authRepo,
           );
@@ -159,7 +159,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           }
         }
         setState(() {
-          _errorMessage = errText.replaceFirst('PHONE_NOT_VERIFIED: ', '');
+          _errorMessage = errText
+              .replaceFirst('EMAIL_NOT_VERIFIED: ', '')
+              .replaceFirst('PHONE_NOT_VERIFIED: ', '');
         });
       }
     } finally {

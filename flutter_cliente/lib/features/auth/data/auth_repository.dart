@@ -107,6 +107,41 @@ class AuthRepository {
     }
   }
 
+  // ── Verificación por Correo Electrónico (Magic Link) ──
+
+  Future<Map<String, dynamic>> sendEmailVerification() async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiEndpoints.emailSendVerification,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final message = e.response?.data?['mensaje'] ??
+          e.response?.data?['message'] ??
+          'Error al enviar el correo de verificación';
+      throw Exception(message);
+    }
+  }
+
+  Future<bool> isEmailVerified() async {
+    if (_sessionUserData != null && _sessionUserData!['emailVerified'] == true) {
+      return true;
+    }
+    try {
+      final response = await _apiClient.dio.get(ApiEndpoints.emailVerificationStatus);
+      if (response.data != null && response.data is Map<String, dynamic>) {
+        final verified = response.data['emailVerified'] == true;
+        if (_sessionUserData != null) {
+          _sessionUserData!['emailVerified'] = verified;
+        }
+        return verified;
+      }
+    } catch (e) {
+      debugPrint('[AuthRepository] Error consultando estado de correo: $e');
+    }
+    return false;
+  }
+
   // ── Verificación Telefónica SMS (Anti-reventa e identidad) ──
 
   Future<Map<String, dynamic>> sendPhoneVerificationCode(String phoneNumber) async {

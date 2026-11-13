@@ -36,6 +36,7 @@ public class ApplicationDbContext : DbContext
     // ── Auditoría y Seguridad ─────────────────────────────────────────
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PhoneVerificationCode> PhoneVerificationCodes => Set<PhoneVerificationCode>();
+    public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

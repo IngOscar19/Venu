@@ -45,6 +45,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PhoneVerified)
             .HasDefaultValue(false);
 
+        builder.Property(u => u.EmailVerified)
+            .HasDefaultValue(false);
+
         builder.Property(u => u.CreatedAt)
             .HasDefaultValueSql("now()");
 

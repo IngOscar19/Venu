@@ -16,6 +16,9 @@ public class User
     public bool PhoneVerified { get; set; } = false;
     public DateTime? PhoneVerifiedAt { get; set; }
 
+    public bool EmailVerified { get; set; } = false;
+    public DateTime? EmailVerifiedAt { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
