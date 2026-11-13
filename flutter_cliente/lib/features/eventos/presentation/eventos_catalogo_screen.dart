@@ -190,6 +190,8 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFullCatalog = _selectedCategory == 'todos' && _searchController.text.trim().isEmpty;
+
     return Scaffold(
       backgroundColor: BroncosColors.background,
       appBar: AppBar(
@@ -535,8 +537,6 @@ class _EventosCatalogoScreenState extends State<EventosCatalogoScreen> {
                           const SizedBox(height: 22),
 
                           // Featured Event / Hero Header (solo en catálogo general sin filtros)
-                          final isFullCatalog = _selectedCategory == 'todos' && _searchController.text.trim().isEmpty;
-
                           if (isFullCatalog && _eventosFiltrados.isNotEmpty) ...[
                             Row(
                               children: [
