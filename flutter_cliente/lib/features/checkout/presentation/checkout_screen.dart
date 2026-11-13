@@ -7,6 +7,7 @@ import '../../../models/tipo_boleto.dart';
 import '../../../shared/utils/formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/presentation/phone_verification_modal.dart';
 import '../data/ordenes_repository.dart';
 import '../data/pagos_repository.dart';
 
@@ -86,6 +87,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     }
 
+    // Validación de identidad por SMS anti-reventa
+    final isPhoneVerified = await _authRepo.isPhoneVerified();
+    if (!isPhoneVerified) {
+      if (mounted) {
+        final verified = await PhoneVerificationModal.show(
+          context,
+          authRepository: _authRepo,
+        );
+        if (!verified) {
+          return;
+        }
+      }
+    }
+
     if (_remainingSeconds <= 0) {
       setState(() {
         _errorMessage =
@@ -132,8 +147,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errText = e.toString().replaceFirst('Exception: ', '');
+        if (errText.contains('PHONE_NOT_VERIFIED')) {
+          final verified = await PhoneVerificationModal.show(
+            context,
+            authRepository: _authRepo,
+          );
+          if (verified) {
+            _procederAlPago();
+            return;
+          }
+        }
         setState(() {
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+          _errorMessage = errText.replaceFirst('PHONE_NOT_VERIFIED: ', '');
         });
       }
     } finally {

@@ -17,5 +17,7 @@ public record UserProfileDto(
     string LastName,
     string Role,
     DateTime CreatedAt,
-    OrganizerProfileDto? Organizer
+    OrganizerProfileDto? Organizer,
+    string? PhoneNumber = null,
+    bool PhoneVerified = false
 );

@@ -33,8 +33,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrdenDetalle> OrdenDetalles => Set<OrdenDetalle>();
     public DbSet<Pago> Pagos => Set<Pago>();
 
-    // ── Auditoría ────────────────────────────────────────────────────
+    // ── Auditoría y Seguridad ─────────────────────────────────────────
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<PhoneVerificationCode> PhoneVerificationCodes => Set<PhoneVerificationCode>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

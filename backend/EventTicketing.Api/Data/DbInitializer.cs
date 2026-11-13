@@ -8,6 +8,33 @@ public static class DbInitializer
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
+        // Migración preventiva para columnas y tablas de verificación telefónica
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""PhoneNumber"" character varying(30);
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""PhoneVerified"" boolean NOT NULL DEFAULT FALSE;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS ""PhoneVerifiedAt"" timestamp with time zone;
+
+                CREATE TABLE IF NOT EXISTS ""PhoneVerificationCodes"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL,
+                    ""PhoneNumber"" character varying(30) NOT NULL,
+                    ""Code"" character varying(10) NOT NULL,
+                    ""Attempts"" integer NOT NULL DEFAULT 0,
+                    ""IsUsed"" boolean NOT NULL DEFAULT FALSE,
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT (now()),
+                    ""ExpiresAt"" timestamp with time zone NOT NULL,
+                    CONSTRAINT ""FK_PhoneVerificationCodes_users_UserId"" FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PhoneVerificationCodes_UserId_Code"" ON ""PhoneVerificationCodes"" (""UserId"", ""Code"");
+            ");
+        }
+        catch
+        {
+            // En caso de que el proveedor o entorno no requiera o no soporte este comando raw
+        }
+
         // EventTypes — catálogo base
         if (!await context.EventTypes.AnyAsync())
         {

@@ -134,4 +134,70 @@ class AuthRepository {
       return false;
     }
   }
+
+  // ── Verificación Telefónica SMS (Anti-reventa e identidad) ──
+
+  Future<Map<String, dynamic>> sendPhoneVerificationCode(String phoneNumber) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiEndpoints.phoneSendCode,
+        data: {'phoneNumber': phoneNumber},
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final message = e.response?.data?['mensaje'] ??
+          e.response?.data?['message'] ??
+          'Error al enviar el código SMS';
+      throw Exception(message);
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyPhoneCode(String phoneNumber, String code) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiEndpoints.phoneVerifyCode,
+        data: {
+          'phoneNumber': phoneNumber,
+          'code': code,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      if (_cachedUserData != null) {
+        _cachedUserData!['phoneVerified'] = true;
+        _cachedUserData!['phoneNumber'] = data['phoneNumber'] ?? phoneNumber;
+        try {
+          await _storage.write(key: _userKey, value: jsonEncode(_cachedUserData));
+        } catch (_) {}
+      }
+      return data;
+    } on DioException catch (e) {
+      final message = e.response?.data?['mensaje'] ??
+          e.response?.data?['message'] ??
+          'Error al verificar el código';
+      throw Exception(message);
+    }
+  }
+
+  Future<bool> isPhoneVerified() async {
+    if (_cachedUserData != null && _cachedUserData!['phoneVerified'] == true) {
+      return true;
+    }
+    try {
+      final response = await _apiClient.dio.get(ApiEndpoints.phoneStatus);
+      if (response.data != null && response.data is Map<String, dynamic>) {
+        final verified = response.data['phoneVerified'] == true;
+        if (_cachedUserData != null) {
+          _cachedUserData!['phoneVerified'] = verified;
+          _cachedUserData!['phoneNumber'] = response.data['phoneNumber'];
+          try {
+            await _storage.write(key: _userKey, value: jsonEncode(_cachedUserData));
+          } catch (_) {}
+        }
+        return verified;
+      }
+    } catch (e) {
+      debugPrint('[AuthRepository] Error consultando estado telefónico: $e');
+    }
+    return false;
+  }
 }

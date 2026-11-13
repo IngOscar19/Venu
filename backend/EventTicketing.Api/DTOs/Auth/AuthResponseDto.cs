@@ -8,5 +8,7 @@ public record AuthResponseDto(
     string LastName,
     string Role,
     Guid? OrganizerId = null,
-    string? OrganizerStatus = null
+    string? OrganizerStatus = null,
+    string? PhoneNumber = null,
+    bool PhoneVerified = false
 );

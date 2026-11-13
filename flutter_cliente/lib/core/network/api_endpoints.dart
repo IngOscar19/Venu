@@ -26,6 +26,11 @@ class ApiEndpoints {
   static const String misBoletos = '/api/usuarios/me/boletos';
   static String boletoDetalle(String id) => '/api/boletos/$id';
 
+  // Verificación Telefónica SMS (Anti-reventa / Identidad)
+  static const String phoneSendCode = '/api/phone-verification/send-code';
+  static const String phoneVerifyCode = '/api/phone-verification/verify-code';
+  static const String phoneStatus = '/api/phone-verification/status';
+
   // Esquema de redirección para la pasarela de pagos
   static const String returnUrlScheme = 'miapp://pago-resultado';
 }

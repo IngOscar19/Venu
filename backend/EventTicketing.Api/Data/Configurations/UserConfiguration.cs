@@ -39,6 +39,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.IsActive)
             .HasDefaultValue(true);
 
+        builder.Property(u => u.PhoneNumber)
+            .HasMaxLength(30);
+
+        builder.Property(u => u.PhoneVerified)
+            .HasDefaultValue(false);
+
         builder.Property(u => u.CreatedAt)
             .HasDefaultValueSql("now()");
 

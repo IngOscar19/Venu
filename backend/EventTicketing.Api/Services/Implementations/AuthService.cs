@@ -91,7 +91,9 @@ public class AuthService : IAuthService
             user.LastName,
             user.Role,
             organizer?.Id,
-            organizer?.Status.ToString()
+            organizer?.Status.ToString(),
+            user.PhoneNumber,
+            user.PhoneVerified
         );
     }
 
@@ -132,7 +134,9 @@ public class AuthService : IAuthService
             user.LastName,
             user.Role,
             user.Organizer?.Id,
-            user.Organizer?.Status.ToString()
+            user.Organizer?.Status.ToString(),
+            user.PhoneNumber,
+            user.PhoneVerified
         );
     }
 
@@ -162,7 +166,9 @@ public class AuthService : IAuthService
             user.LastName,
             user.Role,
             user.CreatedAt,
-            organizerDto
+            organizerDto,
+            user.PhoneNumber,
+            user.PhoneVerified
         );
     }
 

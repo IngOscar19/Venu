@@ -12,6 +12,10 @@ public class User
     // Guardado como string para legibilidad en BD y seguridad ante reordenamiento
     public string Role { get; set; } = "ORGANIZER";
 
+    public string? PhoneNumber { get; set; }
+    public bool PhoneVerified { get; set; } = false;
+    public DateTime? PhoneVerifiedAt { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
