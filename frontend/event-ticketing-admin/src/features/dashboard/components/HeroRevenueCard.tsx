@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { TrendingUp, ArrowUpRight, Plus, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { formatAmount, formatNumber } from '@/lib/utils'
 
 interface HeroRevenueCardProps {
   revenue: number
@@ -18,10 +19,8 @@ export function HeroRevenueCard({
   const user = useAuthStore((state) => state.user)
   const isAdmin = user?.role === 'ADMIN'
   const hasRevenue = revenue > 0
-  const formattedRevenue = revenue.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+  const formattedRevenue = formatAmount(revenue)
+  const [integerPart, decimalPart = '00'] = formattedRevenue.split('.')
 
   // Subtle progress calculation (based on active events or baseline)
   const activityProgress = totalEvents > 0 
@@ -67,8 +66,12 @@ export function HeroRevenueCard({
         {/* Cifra gigante - Protagonista emocional */}
         <div className="my-2 min-w-0">
           <div className="flex items-baseline flex-wrap gap-2 min-w-0">
-            <span className="text-3xl sm:text-5xl lg:text-6xl font-black text-[#F0F6FC] font-headline tracking-tight drop-shadow-sm break-words">
-              ${formattedRevenue}
+            <span className="text-3xl sm:text-5xl lg:text-6xl font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal drop-shadow-sm break-words">
+              <span className="text-[#8B949E] font-semibold mr-1">$</span>
+              {integerPart}
+              <span className="text-xl sm:text-3xl lg:text-4xl font-semibold text-[#8B949E]">
+                .{decimalPart}
+              </span>
             </span>
             <span className="text-base sm:text-xl font-bold text-[#FF5A1F] font-mono shrink-0">
               MXN
@@ -95,7 +98,7 @@ export function HeroRevenueCard({
             ) : (
               <>
                 <span className="text-[#2ECC71] font-semibold">"Ventas activas acumuladas. </span>
-                {totalTicketsSold} boletos vendidos hasta el momento a través de tu cartelera en tiempo real."
+                <span className="tabular-nums font-semibold text-[#F0F6FC]">{formatNumber(totalTicketsSold)}</span> boletos vendidos hasta el momento a través de tu cartelera en tiempo real."
               </>
             )}
           </p>

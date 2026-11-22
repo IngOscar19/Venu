@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Layers } from 'lucide-react'
+import { formatNumber } from '@/lib/utils'
 
 interface BillboardDonutSummaryProps {
   totalEvents: number
@@ -58,8 +59,8 @@ export function BillboardDonutSummary({
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-[#21262D] text-[#8B949E] border border-[#30363D]">
-            {totalEvents} total
+          <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-[#21262D] text-[#F0F6FC] border border-[#30363D] tabular-nums">
+            {formatNumber(totalEvents)} total
           </span>
         </div>
 
@@ -139,7 +140,7 @@ export function BillboardDonutSummary({
 
             {/* Centro del donut */}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-              <span className="text-3xl font-black text-[#F0F6FC] font-headline leading-none">
+              <span className="text-3xl font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal leading-none">
                 {publishRatio}%
               </span>
               <span className="text-[10px] font-mono text-[#8B949E] uppercase mt-1">
@@ -155,8 +156,8 @@ export function BillboardDonutSummary({
                 <span className="h-2.5 w-2.5 rounded-full bg-[#2ECC71] shadow-[0_0_8px_#2ECC71]" />
                 Publicados
               </span>
-              <span className="font-mono font-bold text-[#2ECC71] ml-auto">
-                {publishedEvents}
+              <span className="font-mono text-sm font-bold text-[#2ECC71] tabular-nums ml-auto">
+                {formatNumber(publishedEvents)}
               </span>
             </div>
 
@@ -165,8 +166,8 @@ export function BillboardDonutSummary({
                 <span className="h-2.5 w-2.5 rounded-full bg-[#FF6B35] shadow-[0_0_8px_#FF6B35]" />
                 Borrador
               </span>
-              <span className="font-mono font-bold text-[#FF6B35] ml-auto">
-                {draftEvents}
+              <span className="font-mono text-sm font-bold text-[#FF6B35] tabular-nums ml-auto">
+                {formatNumber(draftEvents)}
               </span>
             </div>
 
@@ -175,8 +176,8 @@ export function BillboardDonutSummary({
                 <span className="h-2.5 w-2.5 rounded-full bg-[#E74C3C] shadow-[0_0_8px_#E74C3C]" />
                 Cancelados
               </span>
-              <span className="font-mono font-bold text-[#E74C3C] ml-auto">
-                {cancelledEvents}
+              <span className="font-mono text-sm font-bold text-[#E74C3C] tabular-nums ml-auto">
+                {formatNumber(cancelledEvents)}
               </span>
             </div>
           </div>
@@ -188,7 +189,7 @@ export function BillboardDonutSummary({
         <p className="text-xs sm:text-sm text-[#8B949E] leading-snug">
           {draftEvents > 0 ? (
             <>
-              <strong className="text-[#F0F6FC]">"{draftEvents} de tus {totalEvents} eventos</strong> están listos para publicarse"
+              <strong className="text-[#F0F6FC] tabular-nums">"{formatNumber(draftEvents)} de tus {formatNumber(totalEvents)} eventos</strong> están listos para publicarse"
             </>
           ) : totalEvents === 0 ? (
             <span className="text-[#F0F6FC]">"Aún no tienes eventos creados. Da el primer paso hoy."</span>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { formatCurrency, formatNumber } from '@/lib/utils'
 import { ArrowLeft, ArrowRight, Plus, Trash2, Pencil, Check, X, Layers, Ticket, AlertCircle } from 'lucide-react'
 
 export interface WizardSectionItem {
@@ -176,8 +177,8 @@ export function Step2Sections({
           <div>
             <div className="flex items-center gap-1.5 text-xs font-mono">
               <span className="text-[#8B949E]">Aforo asignado:</span>
-              <span className={`font-bold ${currentCapacity > maxCapacity ? 'text-rose-400' : 'text-[#FA4616]'}`}>
-                {currentCapacity.toLocaleString()} / {maxCapacity.toLocaleString()}
+              <span className={`font-bold tabular-nums ${currentCapacity > maxCapacity ? 'text-rose-400' : 'text-[#FA4616]'}`}>
+                {formatNumber(currentCapacity)} / {formatNumber(maxCapacity)}
               </span>
             </div>
             <div className="w-36 h-1.5 bg-[#21262D] rounded-full overflow-hidden mt-1">
@@ -260,7 +261,7 @@ export function Step2Sections({
               onChange={(e) => setCapacity(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmitSection()}
               disabled={isSubmittingForm}
-              helperText={`Disponible: ${availableCapacity.toLocaleString()} boletos`}
+              helperText={`Disponible: ${formatNumber(availableCapacity)} boletos`}
             />
           </div>
 
@@ -336,8 +337,8 @@ export function Step2Sections({
             </span>
           </h3>
           {sections.length > 0 && (
-            <span className="text-[11px] font-mono text-[#8B949E]">
-              Total estimado: ${(sections.reduce((acc, s) => acc + (s.capacity * s.basePrice), 0)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
+            <span className="text-xs font-mono text-[#8B949E] tabular-nums">
+              Total estimado: <strong className="text-[#F0F6FC] font-semibold">{formatCurrency(sections.reduce((acc, s) => acc + (s.capacity * s.basePrice), 0))}</strong> MXN
             </span>
           )}
         </div>
@@ -378,18 +379,18 @@ export function Step2Sections({
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-[11px] font-mono text-[#8B949E]">
-                        <span>{(s.capacity ?? 0).toLocaleString()} boletos</span>
+                      <div className="flex items-center gap-3 mt-0.5 text-xs font-mono text-[#8B949E] tabular-nums">
+                        <span>{formatNumber(s.capacity ?? 0)} boletos</span>
                         <span>•</span>
-                        <span>Subtotal: ${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span>Subtotal: {formatCurrency(subtotal)}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-base font-mono font-bold text-[#F5A894]">
-                      ${(s.basePrice ?? 0).toFixed(2)}
-                      <span className="text-[10px] text-[#8B949E] font-normal ml-1">MXN</span>
+                    <span className="text-base font-headline font-bold text-[#F5A894] tabular-nums">
+                      {formatCurrency(s.basePrice ?? 0)}
+                      <span className="text-[11px] text-[#8B949E] font-mono font-normal ml-1">MXN</span>
                     </span>
 
                     {/* Edit button */}

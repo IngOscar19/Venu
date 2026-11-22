@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { normalizeEventStatus, type DashboardRecentEventDto } from '@/types/api'
+import { formatNumber } from '@/lib/utils'
 import { Calendar, MapPin, ChevronRight, Clock, CheckCircle2, XCircle } from 'lucide-react'
 
 interface UpcomingTimelineProps {
@@ -105,7 +106,7 @@ export function UpcomingTimeline({ events = [] }: UpcomingTimelineProps) {
                     <span className="text-[10px] font-mono font-bold text-[#FF5A1F] leading-none">
                       {month}
                     </span>
-                    <span className="text-sm font-black text-[#F0F6FC] font-headline leading-tight mt-0.5">
+                    <span className="text-base font-bold text-[#F0F6FC] font-headline tabular-nums leading-tight mt-0.5">
                       {day}
                     </span>
                   </div>
@@ -130,8 +131,8 @@ export function UpcomingTimeline({ events = [] }: UpcomingTimelineProps) {
                       <span>·</span>
                       <span>{time !== '--:--' ? `${time} hrs` : 'Horario a confirmar'}</span>
                       <span>·</span>
-                      <span className="font-mono text-[#F0F6FC]">
-                        {event.ticketsSold} / {event.capacity} boletos
+                      <span className="font-mono text-xs font-semibold text-[#F0F6FC] tabular-nums">
+                        {formatNumber(event.ticketsSold)} / {formatNumber(event.capacity)} boletos
                       </span>
                     </div>
                   </div>

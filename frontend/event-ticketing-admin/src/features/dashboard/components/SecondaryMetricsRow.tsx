@@ -1,4 +1,5 @@
 import { Ticket, Calendar, Radio } from 'lucide-react'
+import { formatNumber } from '@/lib/utils'
 
 interface SecondaryMetricsRowProps {
   totalTicketsSold: number
@@ -29,8 +30,8 @@ export function SecondaryMetricsRow({
               🎟️ Boletos emitidos
             </p>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-2xl lg:text-3xl font-extrabold text-[#F0F6FC] font-headline">
-                {totalTicketsSold.toLocaleString()}
+              <span className="text-2xl lg:text-3xl font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal">
+                {formatNumber(totalTicketsSold)}
               </span>
               <span className="text-xs font-medium text-[#8B949E]">boletos vendidos</span>
             </div>
@@ -46,8 +47,8 @@ export function SecondaryMetricsRow({
             {totalTicketsSold === 0 ? (
               <span className="text-[#8B949E]">"Ningún boleto vendido todavía"</span>
             ) : (
-              <span className="text-[#2ECC71]">
-                ✓ {totalTicketsSold.toLocaleString()} accesos QR confirmados
+              <span className="text-[#2ECC71] tabular-nums">
+                ✓ {formatNumber(totalTicketsSold)} accesos QR confirmados
               </span>
             )}
           </p>
@@ -62,8 +63,8 @@ export function SecondaryMetricsRow({
               📅 Eventos totales
             </p>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-2xl lg:text-3xl font-extrabold text-[#F0F6FC] font-headline">
-                {totalEvents}
+              <span className="text-2xl lg:text-3xl font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal">
+                {formatNumber(totalEvents)}
               </span>
               <span className="text-xs font-medium text-[#8B949E]">eventos creados</span>
             </div>
@@ -75,13 +76,13 @@ export function SecondaryMetricsRow({
         </div>
 
         <div className="mt-4 pt-3 border-t border-[#21262D]">
-          <p className="text-xs text-[#8B949E]">
+          <p className="text-xs text-[#8B949E] tabular-nums">
             {totalEvents === 0 ? (
               <span>"Aún no tienes eventos registrados"</span>
             ) : (
               <span>
-                "{draftEvents} en preparación
-                {cancelledEvents > 0 ? `, ${cancelledEvents} cancelado${cancelledEvents > 1 ? 's' : ''}` : ''}"
+                "{formatNumber(draftEvents)} en preparación
+                {cancelledEvents > 0 ? `, ${formatNumber(cancelledEvents)} cancelado${cancelledEvents > 1 ? 's' : ''}` : ''}"
               </span>
             )}
           </p>
@@ -96,12 +97,12 @@ export function SecondaryMetricsRow({
               📊 En cartelera
             </p>
             <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-2xl lg:text-3xl font-extrabold text-[#2ECC71] font-headline">
-                {publishedEvents}
+              <span className="text-2xl lg:text-3xl font-bold text-[#2ECC71] font-headline tabular-nums tracking-normal">
+                {formatNumber(publishedEvents)}
               </span>
               <span className="text-xs font-medium text-[#F0F6FC]">activos /</span>
-              <span className="text-base font-bold text-[#F5A623]">
-                {draftEvents}
+              <span className="text-lg font-bold text-[#F5A623] tabular-nums">
+                {formatNumber(draftEvents)}
               </span>
               <span className="text-xs text-[#8B949E]">en borrador</span>
             </div>
@@ -114,12 +115,14 @@ export function SecondaryMetricsRow({
 
         <div className="mt-4 pt-3 border-t border-[#21262D]">
           <div className="flex items-center justify-between text-xs text-[#8B949E] mb-1.5">
-            <span>
+            <span className="tabular-nums">
               {publishedEvents === 0
                 ? "Aún no tienes eventos publicados"
                 : `${publishRatio}% de disponibilidad`}
             </span>
-            <span className="font-mono text-[11px]">{publishedEvents}/{totalEvents}</span>
+            <span className="font-mono text-xs font-semibold text-[#F0F6FC] tabular-nums">
+              {formatNumber(publishedEvents)}/{formatNumber(totalEvents)}
+            </span>
           </div>
           <div className="w-full h-1.5 bg-[#21262D] rounded-full overflow-hidden">
             <div

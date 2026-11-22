@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { normalizeEventStatus, type DashboardRecentEventDto } from '@/types/api'
+import { formatCurrency, formatNumber } from '@/lib/utils'
 import { Calendar, MapPin, Ticket, ArrowRight, Clock, CheckCircle2, XCircle, ArrowUpRight } from 'lucide-react'
 
 interface RecentEventsCardsListProps {
@@ -168,12 +169,14 @@ export function RecentEventsCardsList({
               <div className="flex flex-col sm:flex-row sm:items-center gap-5 lg:gap-8 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#21262D] min-w-0">
                 {/* Barra de boletos vendidos */}
                 <div className="w-full sm:w-56 space-y-1.5 min-w-0">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#8B949E] flex items-center gap-1 font-mono">
-                      <Ticket className="h-3.5 w-3.5 text-[#FF6B35]" />
-                      {event.ticketsSold.toLocaleString()} / {event.capacity.toLocaleString()} boletos
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <span className="text-[#8B949E] flex items-center gap-1.5 font-mono tabular-nums">
+                      <Ticket className="h-3.5 w-3.5 text-[#FF6B35] shrink-0" />
+                      <span>
+                        <strong className="text-[#F0F6FC] font-semibold">{formatNumber(event.ticketsSold)}</strong> / {formatNumber(event.capacity)} boletos
+                      </span>
                     </span>
-                    <span className="font-mono font-bold text-[#F0F6FC] text-[11px]">
+                    <span className="font-mono font-bold text-[#F0F6FC] text-xs tabular-nums shrink-0">
                       {soldPercentage}%
                     </span>
                   </div>
@@ -191,10 +194,10 @@ export function RecentEventsCardsList({
                   <p className="text-[10px] font-mono uppercase tracking-wider text-[#8B949E]">
                     Recaudación
                   </p>
-                  <p className="text-base sm:text-lg font-black text-[#F0F6FC] font-mono mt-0.5">
+                  <p className="text-base sm:text-lg font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal mt-0.5">
                     <span className="text-[#2ECC71] mr-1">💵</span>
-                    ${event.revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    <span className="text-xs text-[#8B949E] font-normal ml-1">MXN</span>
+                    {formatCurrency(event.revenue)}
+                    <span className="text-xs text-[#8B949E] font-mono font-medium ml-1.5">MXN</span>
                   </p>
                 </div>
 

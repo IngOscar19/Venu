@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Eye, CheckCircle, Ban, Trash2, Edit, CalendarClock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import { formatNumber } from '@/lib/utils'
 
 interface EventTableProps {
   events: EventDetailDto[]
@@ -62,8 +63,8 @@ export function EventTable({
                 <td className="py-4 px-3 text-xs text-[#8B949E] truncate max-w-[160px]">
                   {e.venueName}, {e.city}
                 </td>
-                <td className="py-4 px-3 text-right font-mono text-[#F0F6FC]">
-                  {e.capacity.toLocaleString()}
+                <td className="py-4 px-3 text-right font-mono text-sm font-semibold text-[#F0F6FC] tabular-nums">
+                  {formatNumber(e.capacity)}
                 </td>
                 <td className="py-4 pl-3 pr-4 text-right">
                   <div className="flex items-center justify-end gap-1.5">

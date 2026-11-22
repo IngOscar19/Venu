@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/axios'
 import { useAuthStore } from '@/store/authStore'
+import { formatCurrency, formatNumber } from '@/lib/utils'
 import { EventImageLightbox, LightboxImageItem } from '@/features/events/components/EventImageLightbox'
 import { RescheduleModal } from '@/features/events/components/RescheduleModal'
 import type { RescheduleEventDto } from '@/types/api'
@@ -330,8 +331,8 @@ export function EventDetailPage() {
           </div>
           <div>
             <p className="text-[10px] font-mono uppercase text-[#8B949E]">Aforo Total</p>
-            <p className="text-xs font-mono font-bold text-[#F0F6FC] mt-0.5">
-              {event.capacity.toLocaleString()} personas
+            <p className="text-sm font-headline font-bold text-[#F0F6FC] tabular-nums mt-0.5">
+              {formatNumber(event.capacity)} personas
             </p>
           </div>
         </div>
@@ -410,14 +411,18 @@ export function EventDetailPage() {
             {event.sections && event.sections.length > 0 ? (
               <div className="divide-y divide-[#21262D] border border-[#30363D] rounded-xl overflow-hidden bg-[#0D1117]">
                 {event.sections.map((sec) => (
-                  <div key={sec.id} className="p-3.5 flex items-center justify-between hover:bg-[#161B22] transition-colors">
-                    <div>
-                      <h4 className="font-semibold text-xs text-[#F0F6FC]">{sec.name}</h4>
-                      <p className="text-[11px] font-mono text-[#8B949E] mt-0.5">{sec.capacity.toLocaleString()} cupos</p>
+                  <div key={sec.id} className="p-3.5 flex items-center justify-between gap-3 hover:bg-[#161B22] transition-colors">
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-sm text-[#F0F6FC] truncate">{sec.name}</h4>
+                      <p className="text-xs font-mono text-[#8B949E] tabular-nums mt-0.5">
+                        {formatNumber(sec.capacity)} cupos
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-mono font-bold text-[#F5A894]">${sec.basePrice.toFixed(2)}</span>
-                      <span className="block text-[10px] font-mono text-[#6E7681]">por boleto</span>
+                    <div className="text-right shrink-0">
+                      <span className="text-base font-headline font-bold text-[#F5A894] tabular-nums">
+                        {formatCurrency(sec.basePrice)}
+                      </span>
+                      <span className="block text-[10px] font-mono text-[#8B949E]">MXN por boleto</span>
                     </div>
                   </div>
                 ))}

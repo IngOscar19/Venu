@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button'
 import { ArrowLeft, Sparkles, CheckCircle2 } from 'lucide-react'
+import { formatNumber } from '@/lib/utils'
 import type { Step1FormValues } from './Step1General'
 import type { WizardSectionItem } from './Step2Sections'
 
@@ -57,11 +58,11 @@ export function Step4Review({
         </div>
         <div className="flex justify-between items-center py-1.5 border-b border-[#21262D]">
           <span className="text-[#8B949E]">Aforo total:</span>
-          <span className="font-semibold text-[#F0F6FC]">{generalData.capacity.toLocaleString()} personas</span>
+          <span className="font-semibold text-[#F0F6FC] tabular-nums">{formatNumber(generalData.capacity)} personas</span>
         </div>
         <div className="flex justify-between items-center py-1.5 border-b border-[#21262D]">
           <span className="text-[#8B949E]">Secciones:</span>
-          <span className="font-semibold text-[#F5A894]">{sections.length} secciones configuradas</span>
+          <span className="font-semibold text-[#F5A894] tabular-nums">{formatNumber(sections.length)} secciones configuradas</span>
         </div>
         <div className="flex justify-between items-center py-1.5">
           <span className="text-[#8B949E]">Portada cargada:</span>

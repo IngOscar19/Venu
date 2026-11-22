@@ -3,6 +3,7 @@ import { EventStatusBadge } from '@/components/shared/EventStatusBadge'
 import { Link } from 'react-router-dom'
 import { Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { formatCurrency, formatNumber } from '@/lib/utils'
 
 interface RecentEventsTableProps {
   events?: DashboardRecentEventDto[]
@@ -56,11 +57,11 @@ export function RecentEventsTable({ events }: RecentEventsTableProps) {
                 {new Date(e.startDate).toLocaleDateString()}
               </td>
               <td className="py-3.5 text-[#8B949E]">{e.venueName}</td>
-              <td className="py-3.5 text-right font-mono text-[#F0F6FC]">
-                {e.ticketsSold} / {e.capacity}
+              <td className="py-3.5 text-right font-mono text-sm font-medium text-[#F0F6FC] tabular-nums">
+                {formatNumber(e.ticketsSold)} / {formatNumber(e.capacity)}
               </td>
-              <td className="py-3.5 text-right pr-2 font-mono font-bold text-[#F5A894]">
-                ${e.revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <td className="py-3.5 text-right pr-2 font-headline text-sm font-bold text-[#F5A894] tabular-nums">
+                {formatCurrency(e.revenue)}
               </td>
             </tr>
           ))}

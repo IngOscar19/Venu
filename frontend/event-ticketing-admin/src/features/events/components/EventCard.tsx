@@ -5,6 +5,7 @@ import { Calendar, MapPin, Users, Eye, CheckCircle, Ban, Trash2, Edit, CalendarC
 import { Link } from 'react-router-dom'
 import { API_BASE_URL } from '@/lib/axios'
 import { useAuthStore } from '@/store/authStore'
+import { formatNumber } from '@/lib/utils'
 
 interface EventCardProps {
   event: EventDetailDto
@@ -90,7 +91,9 @@ export function EventCard({
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-3.5 h-3.5 text-[#6E7681] shrink-0" />
-              <span className="font-mono text-[11px]">Aforo: {event.capacity.toLocaleString()}</span>
+              <span className="font-mono text-xs tabular-nums">
+                Aforo: <strong className="text-[#F0F6FC] font-semibold">{formatNumber(event.capacity)}</strong>
+              </span>
             </div>
           </div>
         </div>

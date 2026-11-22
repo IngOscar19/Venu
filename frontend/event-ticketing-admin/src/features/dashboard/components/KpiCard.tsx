@@ -26,7 +26,7 @@ export function KpiCard({
           <p className="text-[11px] font-mono font-medium uppercase tracking-wider text-[#8B949E]">
             {title}
           </p>
-          <h3 className="text-2xl font-bold text-[#F0F6FC] mt-2 font-headline">
+          <h3 className="text-2xl sm:text-3xl font-bold text-[#F0F6FC] mt-2 font-headline tabular-nums tracking-normal">
             {value}
           </h3>
         </div>

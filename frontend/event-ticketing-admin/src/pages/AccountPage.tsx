@@ -7,6 +7,7 @@ import { QUERY_KEYS } from '@/constants/queryKeys'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { formatNumber } from '@/lib/utils'
 import type { VerificationLevel } from '@/types/api'
 import {
   User,
@@ -360,12 +361,12 @@ export function AccountPage() {
                 </div>
               </div>
               <div>
-                <p className="text-lg sm:text-xl font-black text-[#F0F6FC] font-headline">
+                <p className="text-lg sm:text-xl font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal">
                   {currentLevel.maxCapacity === Infinity
                     ? 'Sin límite'
                     : currentLevel.maxCapacity === 0
                     ? '0 personas'
-                    : `${currentLevel.maxCapacity.toLocaleString()} personas`}
+                    : `${formatNumber(currentLevel.maxCapacity)} personas`}
                 </p>
                 <p className="text-xs text-[#8B949E] mt-0.5">
                   {currentLevel.maxCapacity === 0
@@ -386,12 +387,12 @@ export function AccountPage() {
                 </div>
               </div>
               <div>
-                <p className="text-lg sm:text-xl font-black text-[#F0F6FC] font-headline">
+                <p className="text-lg sm:text-xl font-bold text-[#F0F6FC] font-headline tabular-nums tracking-normal">
                   {currentLevel.maxEvents === Infinity
                     ? 'Ilimitados'
                     : currentLevel.maxEvents === 0
                     ? '0 en vivo'
-                    : `Hasta ${currentLevel.maxEvents} activos`}
+                    : `Hasta ${formatNumber(currentLevel.maxEvents)} activos`}
                 </p>
                 <p className="text-xs text-[#8B949E] mt-0.5">
                   {currentLevel.maxEvents === 0
