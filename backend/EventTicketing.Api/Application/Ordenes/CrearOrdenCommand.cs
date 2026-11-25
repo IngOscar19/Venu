@@ -23,7 +23,7 @@ public class CrearOrdenCommand
         var usuario = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuarioId);
         if (usuario != null && !usuario.EmailVerified)
         {
-            return ResultadoCrearOrden.Invalido("EMAIL_NOT_VERIFIED: Debes confirmar tu correo electrónico mediante el enlace de verificación antes de realizar la compra.");
+            return ResultadoCrearOrden.Invalido("EMAIL_NOT_VERIFIED: Debes confirmar tu correo electrónico mediante el código de verificación antes de realizar la compra.");
         }
 
         // Se consolidan duplicados y se valida cantidad

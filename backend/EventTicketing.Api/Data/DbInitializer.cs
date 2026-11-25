@@ -36,12 +36,15 @@ public static class DbInitializer
                     ""UserId"" uuid NOT NULL,
                     ""Email"" character varying(256) NOT NULL,
                     ""Token"" character varying(128) NOT NULL,
+                    ""Attempts"" integer NOT NULL DEFAULT 0,
                     ""IsUsed"" boolean NOT NULL DEFAULT FALSE,
                     ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT (now()),
                     ""ExpiresAt"" timestamp with time zone NOT NULL,
                     CONSTRAINT ""FK_EmailVerificationTokens_users_UserId"" FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
                 );
+                ALTER TABLE ""EmailVerificationTokens"" ADD COLUMN IF NOT EXISTS ""Attempts"" integer NOT NULL DEFAULT 0;
                 CREATE INDEX IF NOT EXISTS ""IX_EmailVerificationTokens_Token"" ON ""EmailVerificationTokens"" (""Token"");
+                CREATE INDEX IF NOT EXISTS ""IX_EmailVerificationTokens_UserId_Token"" ON ""EmailVerificationTokens"" (""UserId"", ""Token"");
             ");
         }
         catch

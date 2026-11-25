@@ -11,28 +11,31 @@ namespace EventTicketing.Api.Controllers;
 
 [ApiController]
 [Route("api/email-verification")]
+[Authorize]
 public class EmailVerificationController : ControllerBase
 {
+    private const int DuracionCodigoMinutos = 3;
+    private const int ExpiraEnSegundos = DuracionCodigoMinutos * 60; // 180 segundos
+    private const int CooldownReenvioSegundos = 30;
+    private const int MaxIntentos = 5;
+
     private readonly ApplicationDbContext _db;
     private readonly IEmailService _emailService;
-    private readonly IConfiguration _config;
     private readonly ILogger<EmailVerificationController> _logger;
 
     public EmailVerificationController(
         ApplicationDbContext db,
         IEmailService emailService,
-        IConfiguration config,
         ILogger<EmailVerificationController> logger)
     {
         _db = db;
         _emailService = emailService;
-        _config = config;
         _logger = logger;
     }
 
     [HttpPost("send")]
-    [Authorize]
-    public async Task<IActionResult> EnviarEnlace()
+    [HttpPost("send-code")]
+    public async Task<IActionResult> EnviarCodigo()
     {
         var userId = User.GetUserId();
         if (userId is null) return Unauthorized();
@@ -51,66 +54,66 @@ public class EmailVerificationController : ControllerBase
             });
         }
 
-        // Control de tasa: mínimo 45 segundos entre reenvíos
+        // Control de tasa entre reenvíos
         var ultimoToken = await _db.EmailVerificationTokens
             .Where(t => t.UserId == userId.Value)
             .OrderByDescending(t => t.CreatedAt)
             .FirstOrDefaultAsync();
 
-        if (ultimoToken != null && (DateTime.UtcNow - ultimoToken.CreatedAt).TotalSeconds < 45)
+        if (ultimoToken != null && (DateTime.UtcNow - ultimoToken.CreatedAt).TotalSeconds < CooldownReenvioSegundos)
         {
-            var segundosRestantes = 45 - (int)(DateTime.UtcNow - ultimoToken.CreatedAt).TotalSeconds;
-            return BadRequest(new { mensaje = $"Por favor espera {segundosRestantes} segundos antes de solicitar otro correo." });
+            var segundosRestantes = CooldownReenvioSegundos - (int)(DateTime.UtcNow - ultimoToken.CreatedAt).TotalSeconds;
+            return BadRequest(new { mensaje = $"Por favor espera {segundosRestantes} segundos antes de solicitar otro código." });
         }
 
-        // Token seguro y único de 64 caracteres
-        var tokenBytes = RandomNumberGenerator.GetBytes(32);
-        var token = Convert.ToHexString(tokenBytes).ToLower();
+        // Invalidar códigos anteriores sin usar para que solo el último sea válido
+        var codigosPrevios = await _db.EmailVerificationTokens
+            .Where(t => t.UserId == userId.Value && !t.IsUsed)
+            .ToListAsync();
+
+        foreach (var prev in codigosPrevios)
+        {
+            prev.IsUsed = true;
+        }
+
+        // Generar código numérico seguro de 6 dígitos con duración de 3 minutos
+        var codigo = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+        var ahora = DateTime.UtcNow;
+        var expiraEn = ahora.AddMinutes(DuracionCodigoMinutos);
 
         var record = new EmailVerificationToken
         {
             UserId = user.Id,
-            Email = user.Email.ToLower(),
-            Token = token,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddHours(24),
+            Email = user.Email.ToLowerInvariant(),
+            Token = codigo,
+            Attempts = 0,
+            CreatedAt = ahora,
+            ExpiresAt = expiraEn,
             IsUsed = false
         };
 
         _db.EmailVerificationTokens.Add(record);
         await _db.SaveChangesAsync();
 
-        // Determinar URL pública del backend
-        var baseUrl = _config["App:BackendUrl"];
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            baseUrl = Environment.GetEnvironmentVariable("APP__BACKENDURL")
-                ?? Environment.GetEnvironmentVariable("App__BackendUrl")
-                ?? $"{Request.Scheme}://{Request.Host}";
-        }
-        if (baseUrl.Contains("localhost") && !string.IsNullOrWhiteSpace(_config["WEBSITE_HOSTNAME"]))
-        {
-            baseUrl = $"https://{_config["WEBSITE_HOSTNAME"]}";
-        }
-
-        var verificationUrl = $"{baseUrl.TrimEnd('/')}/api/email-verification/verify?token={token}";
-
-        var cuerpoHtml = GenerarPlantillaHtml(user.FirstName, verificationUrl);
+        var cuerpoHtml = GenerarPlantillaCodigoHtml(user.FirstName, codigo);
         var resultadoEnvio = await _emailService.EnviarCorreoAsync(
             user.Email,
-            "Verifica tu cuenta para tus boletos oficiales | Venú",
+            $"Tu código de verificación es {codigo} | Venú",
             cuerpoHtml);
 
         if (!resultadoEnvio.Exito && !resultadoEnvio.EsSimulado)
         {
-            _logger.LogWarning("Resend no pudo enviar el correo a {Email}: {Error}", user.Email, resultadoEnvio.Error);
+            _logger.LogWarning("El proveedor de correo no pudo enviar el código a {Email}: {Error}", user.Email, resultadoEnvio.Error);
             return Ok(new
             {
                 exito = true,
-                mensaje = "El servicio de correo reportó una restricción. Puedes confirmar tu cuenta con el enlace directo:",
+                mensaje = "El servicio de correo reportó una restricción. Se generó un código de respaldo temporal (válido por 3 minutos).",
                 email = user.Email,
+                expiraEnSegundos = ExpiraEnSegundos,
+                cooldownSegundos = CooldownReenvioSegundos,
+                expiresAt = expiraEn,
                 esSimulado = true,
-                urlSimulada = verificationUrl,
+                codigoSimulado = codigo,
                 errorProveedor = resultadoEnvio.Error
             });
         }
@@ -119,46 +122,97 @@ public class EmailVerificationController : ControllerBase
         {
             exito = true,
             mensaje = resultadoEnvio.EsSimulado
-                ? "Servidor en modo de pruebas. Haz clic en el enlace de verificación para confirmar tu cuenta."
-                : "Enlace de verificación enviado a tu correo.",
+                ? "Servidor en modo de pruebas. Ingresa el código generado para confirmar tu cuenta (válido por 3 minutos)."
+                : "Código de verificación enviado a tu correo electrónico. Válido por 3 minutos.",
             email = user.Email,
+            expiraEnSegundos = ExpiraEnSegundos,
+            cooldownSegundos = CooldownReenvioSegundos,
+            expiresAt = expiraEn,
             esSimulado = resultadoEnvio.EsSimulado,
-            urlSimulada = resultadoEnvio.EsSimulado ? verificationUrl : null
+            codigoSimulado = resultadoEnvio.EsSimulado ? codigo : null
         });
     }
 
-    [HttpGet("verify")]
-    [AllowAnonymous]
-    public async Task<IActionResult> VerificarEnlace([FromQuery] string? token)
+    [HttpPost("verify-code")]
+    public async Task<IActionResult> VerificarCodigo([FromBody] VerificarCodigoEmailRequest req)
     {
-        if (string.IsNullOrWhiteSpace(token))
+        var userId = User.GetUserId();
+        if (userId is null) return Unauthorized();
+
+        var codigoLimpio = req.Code?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(codigoLimpio) || codigoLimpio.Length != 6)
         {
-            return Content(GenerarRespuestaHtml(false, "El enlace de verificación es inválido."), "text/html");
+            return BadRequest(new { mensaje = "Ingresa el código numérico de 6 dígitos enviado a tu correo." });
         }
 
-        var tokenRecord = await _db.EmailVerificationTokens
-            .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.Token == token);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
+        if (user is null) return NotFound(new { mensaje = "Usuario no encontrado." });
 
-        if (tokenRecord is null || tokenRecord.IsUsed || tokenRecord.ExpiresAt < DateTime.UtcNow)
+        if (user.EmailVerified)
         {
-            return Content(GenerarRespuestaHtml(false, "Este enlace de verificación ha expirado o ya fue utilizado. Por favor solicita uno nuevo desde la aplicación."), "text/html");
+            return Ok(new
+            {
+                exito = true,
+                mensaje = "Tu correo electrónico ya se encuentra verificado.",
+                emailVerified = true,
+                email = user.Email
+            });
+        }
+
+        var record = await _db.EmailVerificationTokens
+            .Where(t => t.UserId == userId.Value && !t.IsUsed)
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (record is null)
+        {
+            return BadRequest(new { mensaje = "No hay un código de verificación activo. Solicita uno nuevo." });
+        }
+
+        if (record.ExpiresAt < DateTime.UtcNow)
+        {
+            record.IsUsed = true;
+            await _db.SaveChangesAsync();
+            return BadRequest(new
+            {
+                mensaje = "El código de verificación ha expirado (duración máxima de 3 minutos). Solicita uno nuevo.",
+                codigoExpirado = true
+            });
+        }
+
+        if (record.Attempts >= MaxIntentos)
+        {
+            record.IsUsed = true;
+            await _db.SaveChangesAsync();
+            return BadRequest(new { mensaje = "Demasiados intentos incorrectos. Por seguridad solicita un nuevo código." });
+        }
+
+        if (record.Token != codigoLimpio)
+        {
+            record.Attempts++;
+            await _db.SaveChangesAsync();
+            return BadRequest(new { mensaje = "El código ingresado es incorrecto. Intenta nuevamente." });
         }
 
         // Validación exitosa
-        tokenRecord.IsUsed = true;
-        tokenRecord.User.EmailVerified = true;
-        tokenRecord.User.EmailVerifiedAt = DateTime.UtcNow;
-        tokenRecord.User.UpdatedAt = DateTime.UtcNow;
+        record.IsUsed = true;
+        user.EmailVerified = true;
+        user.EmailVerifiedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
-        _logger.LogInformation("Usuario {UserId} verificó exitosamente su correo {Email}", tokenRecord.User.Id, tokenRecord.User.Email);
+        _logger.LogInformation("Usuario {UserId} verificó exitosamente su correo {Email} con código OTP", user.Id, user.Email);
 
-        return Content(GenerarRespuestaHtml(true, "¡Tu correo ha sido verificado con éxito!"), "text/html");
+        return Ok(new
+        {
+            exito = true,
+            mensaje = "¡Tu correo electrónico ha sido verificado con éxito!",
+            emailVerified = true,
+            email = user.Email
+        });
     }
 
     [HttpGet("status")]
-    [Authorize]
     public async Task<IActionResult> ObtenerEstado()
     {
         var userId = User.GetUserId();
@@ -175,14 +229,14 @@ public class EmailVerificationController : ControllerBase
         });
     }
 
-    private static string GenerarPlantillaHtml(string nombre, string link)
+    private static string GenerarPlantillaCodigoHtml(string nombre, string codigo)
     {
         return $@"
 <!DOCTYPE html>
 <html lang=""es"">
 <head>
   <meta charset=""UTF-8"">
-  <title>Verifica tu cuenta en Venú</title>
+  <title>Código de verificación | Venú</title>
 </head>
 <body style=""margin:0;padding:0;background-color:#0f172a;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f8fafc;"">
   <table role=""presentation"" width=""100%"" border=""0"" cellspacing=""0"" cellpadding=""0"" style=""background-color:#0f172a;padding:40px 10px;"">
@@ -198,30 +252,23 @@ public class EmailVerificationController : ControllerBase
           </tr>
           <!-- Body -->
           <tr>
-            <td style=""padding:36px 32px;"">
-              <h2 style=""margin:0 0 16px;color:#ffffff;font-size:20px;font-weight:700;"">¡Hola, {nombre}! 👋</h2>
-              <p style=""margin:0 0 24px;color:#94a3b8;font-size:15px;line-height:1.6;"">
-                Para proteger tu cuenta contra revendedores y bots, y asegurar que tus boletos con <strong>código QR dinámico</strong> se asocien de forma segura a ti, confirma tu cuenta haciendo clic en el siguiente botón:
+            <td style=""padding:36px 32px;text-align:center;"">
+              <h2 style=""margin:0 0 14px;color:#ffffff;font-size:20px;font-weight:700;text-align:left;"">¡Hola, {nombre}! 👋</h2>
+              <p style=""margin:0 0 24px;color:#94a3b8;font-size:15px;line-height:1.6;text-align:left;"">
+                Para proteger tu cuenta contra revendedores y bots, ingresa el siguiente <strong>código de verificación</strong> en la aplicación:
               </p>
-              <!-- Button -->
-              <table role=""presentation"" border=""0"" cellspacing=""0"" cellpadding=""0"" style=""margin:30px 0;"">
-                <tr>
-                  <td align=""center"" style=""border-radius:14px;background-color:#f05a28;"">
-                    <a href=""{link}"" target=""_blank"" style=""display:inline-block;padding:16px 36px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:14px;letter-spacing:0.3px;"">
-                      Confirmar mi cuenta y continuar compra →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              <p style=""margin:0 0 12px;color:#64748b;font-size:12px;line-height:1.5;"">
-                Si no puedes hacer clic en el botón, copia y pega el siguiente enlace en tu navegador:
-              </p>
-              <p style=""margin:0 0 24px;word-break:break-all;color:#f05a28;font-size:12px;"">
-                {link}
+              <!-- Code Box -->
+              <div style=""margin:28px 0;padding:22px 16px;background-color:#0f172a;border:2px solid #f05a28;border-radius:16px;text-align:center;"">
+                <span style=""font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:800;letter-spacing:10px;color:#ffffff;display:inline-block;"">
+                  {codigo}
+                </span>
+              </div>
+              <p style=""margin:0 0 20px;color:#fbbf24;font-size:13.5px;font-weight:600;"">
+                ⏱️ Este código es válido únicamente durante 3 minutos.
               </p>
               <hr style=""border:none;border-top:1px solid rgba(255,255,255,0.08);margin:24px 0;"">
-              <p style=""margin:0;color:#64748b;font-size:12px;line-height:1.4;"">
-                Este enlace expirará en 24 horas. Si no solicitaste esta verificación, puedes ignorar este mensaje de forma segura.
+              <p style=""margin:0;color:#64748b;font-size:12px;line-height:1.5;text-align:left;"">
+                No compartas este código con nadie. Si no solicitaste esta verificación, puedes ignorar este correo de forma segura.
               </p>
             </td>
           </tr>
@@ -232,102 +279,6 @@ public class EmailVerificationController : ControllerBase
 </body>
 </html>";
     }
-
-    private static string GenerarRespuestaHtml(bool exito, string mensaje)
-    {
-        var iconColor = exito ? "#10b981" : "#ef4444";
-        var iconSvg = exito
-            ? @"<svg width=""64"" height=""64"" viewBox=""0 0 24 24"" fill=""none"" stroke=""#10b981"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><path d=""M22 11.08V12a10 10 0 1 1-5.93-9.14""></path><polyline points=""22 4 12 14.01 9 11.01""></polyline></svg>"
-            : @"<svg width=""64"" height=""64"" viewBox=""0 0 24 24"" fill=""none"" stroke=""#ef4444"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><circle cx=""12"" cy=""12"" r=""10""></circle><line x1=""15"" y1=""9"" x2=""9"" y2=""15""></line><line x1=""9"" y1=""9"" x2=""15"" y2=""15""></line></svg>";
-
-        var titulo = exito ? "¡Cuenta Verificada con Éxito!" : "Enlace Inválido o Expirado";
-        var subtitulo = exito
-            ? "Tu correo electrónico ha sido confirmado en la plataforma de Venú. Ya puedes volver a la aplicación móvil para completar tu compra de boletos."
-            : mensaje;
-
-        return $@"
-<!DOCTYPE html>
-<html lang=""es"">
-<head>
-  <meta charset=""UTF-8"">
-  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-  <title>Venú | Verificación de Cuenta</title>
-  <style>
-    body {{
-      margin: 0;
-      background: #0f172a;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      color: #ffffff;
-      padding: 20px;
-      box-sizing: border-box;
-    }}
-    .card {{
-      background: #1e293b;
-      max-width: 460px;
-      width: 100%;
-      border-radius: 24px;
-      padding: 40px 32px;
-      text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }}
-    .icon-wrap {{
-      display: inline-flex;
-      padding: 16px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.04);
-      margin-bottom: 24px;
-    }}
-    h1 {{
-      font-size: 24px;
-      font-weight: 800;
-      margin: 0 0 12px;
-      letter-spacing: -0.5px;
-    }}
-    p {{
-      color: #94a3b8;
-      font-size: 15px;
-      line-height: 1.6;
-      margin: 0 0 32px;
-    }}
-    .btn {{
-      display: inline-block;
-      width: 100%;
-      box-sizing: border-box;
-      background: #f05a28;
-      color: #ffffff;
-      padding: 15px 24px;
-      border-radius: 14px;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 15px;
-      transition: background 0.2s;
-    }}
-    .btn:hover {{
-      background: #d94817;
-    }}
-    .footer-note {{
-      margin-top: 24px;
-      font-size: 12px;
-      color: #64748b;
-    }}
-  </style>
-</head>
-<body>
-  <div class=""card"">
-    <div class=""icon-wrap"">
-      {iconSvg}
-    </div>
-    <h1>{titulo}</h1>
-    <p>{subtitulo}</p>
-    <a href=""miapp://email-verified"" class=""btn"">Abrir aplicación Venú</a>
-    <div class=""footer-note"">Venú • Plataforma Oficial de Boletos</div>
-  </div>
-</body>
-</html>";
-    }
 }
+
+public record VerificarCodigoEmailRequest(string Code);
