@@ -441,13 +441,24 @@ public class EventService : IEventService
         var ev = await _context.Events.FindAsync(eventId)
             ?? throw new KeyNotFoundException("El evento no fue encontrado.");
 
-        if (ev.OrganizerId != organizerId)
+        var isAdmin = _httpContextAccessor.HttpContext?.User.IsAdminUser() == true;
+        if (!isAdmin && ev.OrganizerId != organizerId)
         {
             throw new UnauthorizedAccessException("No tienes permisos para cancelar este evento.");
         }
 
         ev.Status = EventStatus.CANCELLED;
         ev.UpdatedAt = DateTime.UtcNow;
+
+        // Si había decisiones previas de "conservar boleto" o rechazos por reprogramación,
+        // se eliminan para que el comprador pueda solicitar su reembolso por cancelación.
+        var prevNonFinalDecisions = await _context.RefundRequests
+            .Where(r => r.EventId == eventId && (r.Status == "KEPT" || r.Status == "REJECTED"))
+            .ToListAsync();
+        if (prevNonFinalDecisions.Count > 0)
+        {
+            _context.RefundRequests.RemoveRange(prevNonFinalDecisions);
+        }
 
         await _context.SaveChangesAsync();
 
@@ -468,7 +479,8 @@ public class EventService : IEventService
             .FirstOrDefaultAsync(e => e.Id == eventId)
             ?? throw new KeyNotFoundException("El evento no fue encontrado.");
 
-        if (ev.OrganizerId != organizerId)
+        var isAdmin = _httpContextAccessor.HttpContext?.User.IsAdminUser() == true;
+        if (!isAdmin && ev.OrganizerId != organizerId)
         {
             throw new UnauthorizedAccessException("No tienes permisos para reprogramar este evento.");
         }
@@ -479,6 +491,16 @@ public class EventService : IEventService
         ev.EndTime = dto.EndTime;
         ev.Status = EventStatus.RESCHEDULED;
         ev.UpdatedAt = DateTime.UtcNow;
+
+        // Ante una nueva reprogramación, se reinician decisiones previas de conservar/rechazo
+        // para que el comprador pueda decidir sobre la nueva fecha.
+        var prevDecisions = await _context.RefundRequests
+            .Where(r => r.EventId == eventId && (r.Status == "KEPT" || r.Status == "REJECTED"))
+            .ToListAsync();
+        if (prevDecisions.Count > 0)
+        {
+            _context.RefundRequests.RemoveRange(prevDecisions);
+        }
 
         await _context.SaveChangesAsync();
 

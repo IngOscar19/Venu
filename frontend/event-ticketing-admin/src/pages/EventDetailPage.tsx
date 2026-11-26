@@ -25,6 +25,7 @@ import { useAuthStore } from '@/store/authStore'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { EventImageLightbox, LightboxImageItem } from '@/features/events/components/EventImageLightbox'
 import { RescheduleModal } from '@/features/events/components/RescheduleModal'
+import { EventRefundsPanel } from '@/features/events/components/EventRefundsPanel'
 import type { RescheduleEventDto } from '@/types/api'
 
 export function EventDetailPage() {
@@ -176,55 +177,57 @@ export function EventDetailPage() {
           </div>
         </div>
 
-        {!isAdmin && (
-          <div className="flex items-center gap-2">
-            {/* Botón de editar siempre disponible para borradores y eventos activos */}
-            <Link to={`/events/${event.id}/edit`}>
-              <Button variant="secondary" size="sm" className="gap-1.5 font-medium border border-[#30363D] hover:bg-[#21262D] text-[#F0F6FC]">
-                <Edit className="w-4 h-4 text-[#FA4616]" />
-                {normalizedStatus === 'DRAFT' ? 'Editar Borrador' : 'Editar Evento'}
-              </Button>
-            </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {!isAdmin && (
+            <>
+              {/* Botón de editar siempre disponible para borradores y eventos activos */}
+              <Link to={`/events/${event.id}/edit`}>
+                <Button variant="secondary" size="sm" className="gap-1.5 font-medium border border-[#30363D] hover:bg-[#21262D] text-[#F0F6FC]">
+                  <Edit className="w-4 h-4 text-[#FA4616]" />
+                  {normalizedStatus === 'DRAFT' ? 'Editar Borrador' : 'Editar Evento'}
+                </Button>
+              </Link>
 
-            {normalizedStatus === 'DRAFT' && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handlePublish}
-                isLoading={publishMutation.isPending}
-                className="gap-1.5 font-bold"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Publicar Evento
-              </Button>
-            )}
+              {normalizedStatus === 'DRAFT' && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handlePublish}
+                  isLoading={publishMutation.isPending}
+                  className="gap-1.5 font-bold"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Publicar Evento
+                </Button>
+              )}
+            </>
+          )}
 
-            {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setIsRescheduleOpen(true)}
-                className="gap-1.5 font-bold border border-purple-800/60 bg-purple-950/30 text-purple-300 hover:bg-purple-900/40 hover:text-white"
-              >
-                <CalendarClock className="w-4 h-4 text-purple-400" />
-                Reprogramar
-              </Button>
-            )}
+          {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsRescheduleOpen(true)}
+              className="gap-1.5 font-bold border border-purple-800/60 bg-purple-950/30 text-purple-300 hover:bg-purple-900/40 hover:text-white"
+            >
+              <CalendarClock className="w-4 h-4 text-purple-400" />
+              Reprogramar
+            </Button>
+          )}
 
-            {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleCancel}
-                isLoading={cancelMutation.isPending}
-                className="gap-1.5"
-              >
-                <Ban className="w-4 h-4" />
-                Cancelar Evento
-              </Button>
-            )}
-          </div>
-        )}
+          {(normalizedStatus === 'PUBLISHED' || normalizedStatus === 'RESCHEDULED') && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleCancel}
+              isLoading={cancelMutation.isPending}
+              className="gap-1.5"
+            >
+              <Ban className="w-4 h-4" />
+              Cancelar Evento
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Banner / Poster */}
@@ -445,6 +448,9 @@ export function EventDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Refunds & Affected Tickets Management Panel */}
+      <EventRefundsPanel eventId={event.id} normalizedStatus={normalizedStatus} />
 
       {/* High-Definition Interactive Lightbox Modal */}
       <EventImageLightbox

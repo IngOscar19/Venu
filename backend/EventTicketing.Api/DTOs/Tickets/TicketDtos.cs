@@ -29,7 +29,11 @@ public record TicketDto(
     DateTime EventStartDate,
     string VenueName,
     string? QrBase64 = null,
-    string? QrSeed = null
+    string? QrSeed = null,
+    EventStatus EventStatus = EventStatus.PUBLISHED,
+    string? RefundStatus = null,
+    DateTime? RefundRequestedAt = null,
+    DateTime? RefundResolvedAt = null
 );
 
 public record OrderDto(

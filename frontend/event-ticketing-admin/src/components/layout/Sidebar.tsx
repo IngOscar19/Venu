@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom'
-import { LayoutDashboard, Calendar, PlusCircle, LogOut, ShieldCheck, Shield, Users, User, X } from 'lucide-react'
+import { LayoutDashboard, Calendar, PlusCircle, LogOut, ShieldCheck, Shield, Users, User, X, RotateCcw } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +22,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: Calendar,
       end: true,
     },
+    { to: '/refunds', label: 'Reembolsos', icon: RotateCcw },
     ...(!isAdmin
       ? [
           { to: '/events/new', label: 'Crear Evento', icon: PlusCircle },

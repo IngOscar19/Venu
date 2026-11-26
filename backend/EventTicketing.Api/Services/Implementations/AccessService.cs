@@ -131,6 +131,41 @@ public class AccessService : IAccessService
             );
         }
 
+        if (ticket.Order?.Event?.Status == EventStatus.CANCELLED)
+        {
+            return new TicketValidationResultDto(
+                Success: false,
+                Message: "El evento de este boleto fue CANCELADO.",
+                TicketCode: ticket.TicketCode,
+                AttendeeName: ticket.AttendeeName,
+                SectionName: ticket.EventSection?.Name,
+                EventName: ticket.Order?.Event?.Name,
+                UsedAt: null
+            );
+        }
+
+        var activeRefund = await _context.RefundRequests
+            .AsNoTracking()
+            .Where(r => r.TicketId == ticket.Id && (r.Status == "PENDING" || r.Status == "REFUNDED"))
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (activeRefund != null)
+        {
+            var refundMsg = activeRefund.Status == "REFUNDED"
+                ? "Este boleto fue REEMBOLSADO y cancelado."
+                : "Este boleto tiene una solicitud de REEMBOLSO en proceso y no permite el acceso.";
+            return new TicketValidationResultDto(
+                Success: false,
+                Message: refundMsg,
+                TicketCode: ticket.TicketCode,
+                AttendeeName: ticket.AttendeeName,
+                SectionName: ticket.EventSection?.Name,
+                EventName: ticket.Order?.Event?.Name,
+                UsedAt: null
+            );
+        }
+
         if (ticket.Status == TicketStatus.CANCELLED)
         {
             return new TicketValidationResultDto(

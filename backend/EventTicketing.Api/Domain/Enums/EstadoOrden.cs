@@ -6,5 +6,6 @@ public enum EstadoOrden
     Pagada,
     Completada,
     Cancelada,
-    Expirada
+    Expirada,
+    Reembolsada
 }

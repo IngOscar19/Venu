@@ -33,7 +33,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired()
             .HasColumnType("numeric(10,2)");
 
-        // Enum de estado almacenado en la columna status ("PENDING", "COMPLETED", "CANCELLED", "EXPIRED")
+        // Enum de estado almacenado en la columna status ("PENDING", "COMPLETED", "CANCELLED", "EXPIRED", "REFUNDED")
         builder.Property(o => o.Estado)
             .HasColumnName("status")
             .HasMaxLength(20)
@@ -42,10 +42,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
                    : e == EstadoOrden.Pagada || e == EstadoOrden.Completada ? "COMPLETED"
                    : e == EstadoOrden.Cancelada ? "CANCELLED"
                    : e == EstadoOrden.Expirada ? "EXPIRED"
+                   : e == EstadoOrden.Reembolsada ? "REFUNDED"
                    : "PENDING",
                 s => s == "COMPLETED" || s == "Completada" || s == "PAID" || s == "Pagada" ? EstadoOrden.Pagada
                    : s == "CANCELLED" || s == "Cancelada" ? EstadoOrden.Cancelada
                    : s == "EXPIRED" || s == "Expirada" ? EstadoOrden.Expirada
+                   : s == "REFUNDED" || s == "Reembolsada" ? EstadoOrden.Reembolsada
                    : EstadoOrden.Pendiente)
             .HasDefaultValue(EstadoOrden.Pendiente);
 

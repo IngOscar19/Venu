@@ -137,7 +137,10 @@ public class TicketService : ITicketService
             .OrderByDescending(o => o.Fecha)
             .ToListAsync();
 
-        return orders.Select(MapToOrderDto);
+        var ticketIds = orders.SelectMany(o => o.Tickets).Select(t => t.Id).ToList();
+        var refundMap = await LoadLatestRefundsByTicketAsync(ticketIds);
+
+        return orders.Select(o => MapToOrderDto(o, refundMap));
     }
 
     public async Task<OrderDto> GetOrderByIdAsync(Guid userId, Guid orderId)
@@ -154,7 +157,10 @@ public class TicketService : ITicketService
             throw new UnauthorizedAccessException("No tienes permisos para ver esta orden.");
         }
 
-        return MapToOrderDto(order);
+        var ticketIds = order.Tickets.Select(t => t.Id).ToList();
+        var refundMap = await LoadLatestRefundsByTicketAsync(ticketIds);
+
+        return MapToOrderDto(order, refundMap);
     }
 
     public async Task<IEnumerable<TicketDto>> GetUserTicketsAsync(Guid userId)
@@ -185,7 +191,13 @@ public class TicketService : ITicketService
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
-        return tickets.Select(MapToTicketDto);
+        var refundMap = await LoadLatestRefundsByTicketAsync(tickets.Select(t => t.Id).ToList());
+
+        return tickets.Select(t =>
+        {
+            refundMap.TryGetValue(t.Id, out var refund);
+            return MapToTicketDto(t, null, refund);
+        });
     }
 
     public async Task<TicketDto> GetTicketByIdAsync(Guid userId, Guid ticketId)
@@ -205,7 +217,28 @@ public class TicketService : ITicketService
         var png = _generadorQr.GenerarPng(ticket.TicketCode);
         var qrBase64 = Convert.ToBase64String(png);
 
-        return MapToTicketDto(ticket, qrBase64);
+        var refund = await _context.RefundRequests
+            .AsNoTracking()
+            .Where(r => r.TicketId == ticket.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        return MapToTicketDto(ticket, qrBase64, refund);
+    }
+
+    private async Task<Dictionary<Guid, RefundRequest>> LoadLatestRefundsByTicketAsync(List<Guid> ticketIds)
+    {
+        if (ticketIds.Count == 0) return new Dictionary<Guid, RefundRequest>();
+
+        var refunds = await _context.RefundRequests
+            .AsNoTracking()
+            .Where(r => ticketIds.Contains(r.TicketId))
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        return refunds
+            .GroupBy(r => r.TicketId)
+            .ToDictionary(g => g.Key, g => g.First());
     }
 
     private static string GenerateReferenceCode()
@@ -221,7 +254,7 @@ public class TicketService : ITicketService
         return $"TKT-{hex}";
     }
 
-    private OrderDto MapToOrderDto(Order o)
+    private OrderDto MapToOrderDto(Order o, Dictionary<Guid, RefundRequest>? refundMap = null)
     {
         return new OrderDto(
             o.Id,
@@ -232,30 +265,37 @@ public class TicketService : ITicketService
             o.TotalAmount,
             o.Status,
             o.CreatedAt,
-            o.Tickets.Select(t => new TicketDto(
-                t.Id,
-                t.OrderId,
-                t.EventSectionId,
-                t.EventSection?.Name ?? string.Empty,
-                t.TicketCode,
-                t.AttendeeName,
-                t.AttendeeEmail,
-                t.Price,
-                t.Status,
-                t.UsedAt,
-                t.CreatedAt,
-                o.Event?.Name ?? string.Empty,
-                o.Event?.StartDate ?? DateTime.MinValue,
-                o.Event?.VenueName ?? string.Empty,
-                null,
-                _dynamicQr.GenerarSeed(t.Id, t.TicketCode)
-            )).ToList()
+            o.Tickets.Select(t =>
+            {
+                RefundRequest? refund = null;
+                refundMap?.TryGetValue(t.Id, out refund);
+                return new TicketDto(
+                    t.Id,
+                    t.OrderId,
+                    t.EventSectionId,
+                    t.EventSection?.Name ?? string.Empty,
+                    t.TicketCode,
+                    t.AttendeeName,
+                    t.AttendeeEmail,
+                    t.Price,
+                    t.Status,
+                    t.UsedAt,
+                    t.CreatedAt,
+                    o.Event?.Name ?? string.Empty,
+                    o.Event?.StartDate ?? DateTime.MinValue,
+                    o.Event?.VenueName ?? string.Empty,
+                    null,
+                    _dynamicQr.GenerarSeed(t.Id, t.TicketCode),
+                    o.Event?.Status ?? EventStatus.PUBLISHED,
+                    refund?.Status,
+                    refund?.CreatedAt,
+                    refund?.ResolvedAt
+                );
+            }).ToList()
         );
     }
 
-    private TicketDto MapToTicketDto(Ticket t) => MapToTicketDto(t, null);
-
-    private TicketDto MapToTicketDto(Ticket t, string? qrBase64)
+    private TicketDto MapToTicketDto(Ticket t, string? qrBase64, RefundRequest? refund = null)
     {
         return new TicketDto(
             t.Id,
@@ -273,7 +313,11 @@ public class TicketService : ITicketService
             t.Order?.Event?.StartDate ?? DateTime.MinValue,
             t.Order?.Event?.VenueName ?? string.Empty,
             qrBase64,
-            _dynamicQr.GenerarSeed(t.Id, t.TicketCode)
+            _dynamicQr.GenerarSeed(t.Id, t.TicketCode),
+            t.Order?.Event?.Status ?? EventStatus.PUBLISHED,
+            refund?.Status,
+            refund?.CreatedAt,
+            refund?.ResolvedAt
         );
     }
 }

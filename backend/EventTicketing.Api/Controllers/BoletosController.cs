@@ -32,11 +32,18 @@ public class BoletosController : ControllerBase
 
         var boleto = await _db.Tickets
             .Include(t => t.Order)
+                .ThenInclude(o => o.Event)
             .Include(t => t.EventSection)
             .FirstOrDefaultAsync(b => b.Id == id);
 
         // Solo el dueño del boleto (o un admin) puede verlo; 404 para no revelar existencia
         if (boleto is null || (boleto.Order.UsuarioId != usuarioId.Value && !User.IsAdminUser())) return NotFound();
+
+        var refund = await _db.RefundRequests
+            .AsNoTracking()
+            .Where(r => r.TicketId == boleto.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync();
 
         var png = _generadorQr.GenerarPng(boleto.CodigoQr);
         var qrBase64 = Convert.ToBase64String(png);
@@ -45,8 +52,18 @@ public class BoletosController : ControllerBase
         {
             boleto.Id,
             boleto.EventoId,
+            boleto.TicketCode,
             Estado = boleto.Estado.ToString(),
+            boleto.UsedAt,
             boleto.FechaEmision,
+            EventoNombre = boleto.Order?.Event?.Name ?? "Evento",
+            EventStartDate = boleto.Order?.Event?.StartDate,
+            VenueName = boleto.Order?.Event?.VenueName,
+            SectionName = boleto.EventSection?.Name,
+            EventStatus = (boleto.Order?.Event?.Status ?? Domain.Enums.EventStatus.PUBLISHED).ToString(),
+            RefundStatus = refund?.Status,
+            RefundRequestedAt = refund?.CreatedAt,
+            RefundResolvedAt = refund?.ResolvedAt,
             QrBase64 = qrBase64,
             QrSeed = _dynamicQr.GenerarSeed(boleto.Id, boleto.TicketCode)
         });

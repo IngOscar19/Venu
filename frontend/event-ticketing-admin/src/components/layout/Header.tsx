@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  RotateCcw,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
@@ -53,6 +54,7 @@ export function Header() {
       icon: Calendar,
       end: true,
     },
+    { to: '/refunds', label: 'Reembolsos', icon: RotateCcw },
     ...(isAdmin
       ? [
           { to: '/admin/organizers', label: 'Organizadores', icon: Users },

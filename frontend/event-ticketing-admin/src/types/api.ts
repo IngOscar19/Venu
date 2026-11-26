@@ -265,6 +265,66 @@ export interface OrganizerMyVerificationResponse {
   } | null
 }
 
+// ================= REFUNDS DTOs =================
+export type RefundStatus = 'PENDING' | 'REFUNDED' | 'REJECTED' | 'KEPT'
+
+export interface RefundItemAdminDto {
+  id: string
+  ticketId: string
+  ticketCode: string
+  sectionName: string
+  orderId: string
+  orderReference: string
+  eventId: string
+  eventName: string
+  eventStatus: string
+  eventStartDate: string
+  userId: string
+  attendeeName: string
+  attendeeEmail: string
+  amount: number
+  eventTriggerStatus: string
+  status: RefundStatus
+  reason?: string | null
+  resolutionNotes?: string | null
+  createdAt: string
+  resolvedAt?: string | null
+}
+
+export interface EventTicketRefundRowDto {
+  ticketId: string
+  ticketCode: string
+  orderId: string
+  orderReference: string
+  sectionName: string
+  attendeeName: string
+  attendeeEmail: string
+  price: number
+  ticketStatus: TicketStatus
+  refundId?: string | null
+  refundStatus?: RefundStatus | null
+  reason?: string | null
+  resolutionNotes?: string | null
+  requestedAt?: string | null
+  resolvedAt?: string | null
+}
+
+export interface EventRefundSummaryDto {
+  eventId: string
+  eventName: string
+  eventStatus: string
+  totalTickets: number
+  validTickets: number
+  usedTickets: number
+  pendingRefundsCount: number
+  refundedCount: number
+  keptCount: number
+  undecidedValidCount: number
+  pendingRefundAmount: number
+  totalRefundedAmount: number
+  tickets: EventTicketRefundRowDto[]
+}
+
 // ================= ERROR HANDLING =================
 export interface ApiErrorResponse {
   message?: string

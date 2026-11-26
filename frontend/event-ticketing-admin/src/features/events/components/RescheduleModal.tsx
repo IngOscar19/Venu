@@ -99,7 +99,8 @@ export function RescheduleModal({
           <p className="leading-relaxed">
             Al reprogramar el evento, su estado cambiará a{' '}
             <strong className="text-purple-300 font-mono">REPROGRAMADO</strong>{' '}
-            y se actualizará la fecha en la cartelera. Los boletos ya adquiridos permanecerán válidos para la nueva fecha.
+            y se actualizará la fecha en la cartelera. Los compradores podrán elegir desde su aplicación entre{' '}
+            <strong>mantener su boleto</strong> para la nueva fecha o <strong>solicitar el reembolso</strong> de su dinero.
           </p>
         </div>
 

@@ -209,7 +209,7 @@ public class EventsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Cancel(Guid id)
     {
-        var organizerId = GetOrganizerIdFromClaims();
+        var organizerId = GetOrganizerIdOrAdmin();
         await _eventService.CancelAsync(organizerId, id);
         return NoContent();
     }
@@ -218,9 +218,24 @@ public class EventsController : ControllerBase
     [Authorize]
     public async Task<ActionResult<EventDetailDto>> Reschedule(Guid id, [FromBody] RescheduleEventDto dto)
     {
-        var organizerId = GetOrganizerIdFromClaims();
+        var organizerId = GetOrganizerIdOrAdmin();
         var result = await _eventService.RescheduleAsync(organizerId, id, dto);
         return Ok(result);
+    }
+
+    private Guid GetOrganizerIdOrAdmin()
+    {
+        var claim = User.Claims.FirstOrDefault(c => c.Type == "organizerId")?.Value;
+        if (Guid.TryParse(claim, out var organizerId))
+            return organizerId;
+
+        var isAdmin = User.IsInRole("ADMIN")
+            || User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "ADMIN"
+            || User.FindFirst("role")?.Value == "ADMIN";
+        if (isAdmin)
+            return Guid.Empty;
+
+        throw new UnauthorizedAccessException("El usuario autenticado no cuenta con un perfil de organizador asociado.");
     }
 
     private Guid GetOrganizerIdFromClaims()

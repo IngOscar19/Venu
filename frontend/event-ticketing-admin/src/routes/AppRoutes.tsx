@@ -13,6 +13,7 @@ const EventDetailPage = lazy(() => import('@/pages/EventDetailPage'))
 const AdminOrganizersPage = lazy(() => import('@/features/admin/pages/AdminOrganizersPage'))
 const VerificationRequestPage = lazy(() => import('@/features/organizer/pages/VerificationRequestPage'))
 const AdminVerificationsPage = lazy(() => import('@/features/admin/pages/AdminVerificationsPage'))
+const RefundsPage = lazy(() => import('@/features/refunds/pages/RefundsPage'))
 const AccountPage = lazy(() => import('@/pages/AccountPage'))
 
 function PageLoader() {
@@ -42,6 +43,7 @@ export function AppRoutes() {
             <Route path="/events/new" element={<EventWizardPage />} />
             <Route path="/events/:id/edit" element={<EventWizardPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/refunds" element={<RefundsPage />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/profile" element={<Navigate to="/account" replace />} />
             <Route path="/verification" element={<VerificationRequestPage />} />

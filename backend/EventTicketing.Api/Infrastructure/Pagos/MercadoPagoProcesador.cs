@@ -81,9 +81,13 @@ public class MercadoPagoProcesador : IProcesadorPago
             pago.PaymentMethodId);
     }
 
-    public async Task ReembolsarAsync(string idPagoExterno)
+    public async Task ReembolsarAsync(string idPagoExterno, decimal? monto = null)
     {
         var client = new PaymentRefundClient();
-        await client.RefundAsync(long.Parse(idPagoExterno));
+        var paymentId = long.Parse(idPagoExterno);
+        if (monto.HasValue && monto.Value > 0)
+            await client.RefundAsync(paymentId, monto.Value);
+        else
+            await client.RefundAsync(paymentId);
     }
 }

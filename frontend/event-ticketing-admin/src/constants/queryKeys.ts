@@ -15,4 +15,9 @@ export const QUERY_KEYS = {
   dashboard: {
     stats: ['dashboard', 'stats'] as const,
   },
+  refunds: {
+    all: ['refunds'] as const,
+    list: (filters?: Record<string, any>) => ['refunds', 'list', filters] as const,
+    eventSummary: (eventId: string) => ['refunds', 'event-summary', eventId] as const,
+  },
 } as const

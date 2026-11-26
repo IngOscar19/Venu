@@ -28,5 +28,5 @@ public class ProcesadorPagoSimulado : IProcesadorPago
     public Task<ResultadoPago> ConsultarPagoAsync(string idPagoExterno) =>
         throw new NotSupportedException("El pago simulado no se consulta: se confirma directamente desde el checkout simulado.");
 
-    public Task ReembolsarAsync(string idPagoExterno) => Task.CompletedTask;
+    public Task ReembolsarAsync(string idPagoExterno, decimal? monto = null) => Task.CompletedTask;
 }

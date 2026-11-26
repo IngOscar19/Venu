@@ -45,6 +45,28 @@ public static class DbInitializer
                 ALTER TABLE ""EmailVerificationTokens"" ADD COLUMN IF NOT EXISTS ""Attempts"" integer NOT NULL DEFAULT 0;
                 CREATE INDEX IF NOT EXISTS ""IX_EmailVerificationTokens_Token"" ON ""EmailVerificationTokens"" (""Token"");
                 CREATE INDEX IF NOT EXISTS ""IX_EmailVerificationTokens_UserId_Token"" ON ""EmailVerificationTokens"" (""UserId"", ""Token"");
+
+                CREATE TABLE IF NOT EXISTS ""RefundRequests"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""TicketId"" uuid NOT NULL,
+                    ""OrderId"" uuid NOT NULL,
+                    ""EventId"" uuid NOT NULL,
+                    ""UserId"" uuid NOT NULL,
+                    ""Amount"" numeric(10,2) NOT NULL,
+                    ""EventTriggerStatus"" character varying(30) NOT NULL,
+                    ""Status"" character varying(30) NOT NULL DEFAULT 'PENDING',
+                    ""Reason"" character varying(500),
+                    ""ResolutionNotes"" character varying(500),
+                    ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT (now()),
+                    ""ResolvedAt"" timestamp with time zone,
+                    CONSTRAINT ""FK_RefundRequests_tickets_TicketId"" FOREIGN KEY (""TicketId"") REFERENCES tickets (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_RefundRequests_orders_OrderId"" FOREIGN KEY (""OrderId"") REFERENCES orders (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_RefundRequests_events_EventId"" FOREIGN KEY (""EventId"") REFERENCES events (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_RefundRequests_users_UserId"" FOREIGN KEY (""UserId"") REFERENCES users (""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_RefundRequests_TicketId"" ON ""RefundRequests"" (""TicketId"");
+                CREATE INDEX IF NOT EXISTS ""IX_RefundRequests_EventId"" ON ""RefundRequests"" (""EventId"");
+                CREATE INDEX IF NOT EXISTS ""IX_RefundRequests_UserId"" ON ""RefundRequests"" (""UserId"");
             ");
         }
         catch

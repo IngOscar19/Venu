@@ -54,6 +54,7 @@ public class Order
             EstadoOrden.Completada => OrderStatus.COMPLETED,
             EstadoOrden.Cancelada => OrderStatus.CANCELLED,
             EstadoOrden.Expirada => OrderStatus.EXPIRED,
+            EstadoOrden.Reembolsada => OrderStatus.REFUNDED,
             _ => OrderStatus.PENDING
         };
         set => Estado = value switch
@@ -62,6 +63,7 @@ public class Order
             OrderStatus.COMPLETED => EstadoOrden.Pagada,
             OrderStatus.CANCELLED => EstadoOrden.Cancelada,
             OrderStatus.EXPIRED => EstadoOrden.Expirada,
+            OrderStatus.REFUNDED => EstadoOrden.Reembolsada,
             _ => EstadoOrden.Pendiente
         };
     }
